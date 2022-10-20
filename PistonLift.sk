@@ -1,0 +1,125 @@
+# PistonLift.sk 파일은 크리에이티브 커먼즈 저작자표시-비영리-변경금지 4.0 국제 라이선스가 적용 되어 있습니다.
+# 이 라이선스의 설명을 보고 싶으시면 https://creativecommons.org/licenses/by-nc-nd/4.0 을(를) 참조하세요.
+
+# 원저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+# 배포 : https://blog.naver.com/v_hone/222498673491
+
+# v0.0.1 [ MC1.17 / SK 2.6 ] (210907)
+#  - 위를 향한 피스톤에 올라서면 지정된 높이(최대 255)로 상승
+#  - 높이는 피스톤에 연결(설치)된 사용 가능한 블럭과 개수로 계산
+#  - 웅크리기를 하면 상승 해제
+#  - 사용 가능한 블럭과 블록 당 높이
+#    . 철 블록 = 1 블록
+#    . 구리 블록 = 2 블록
+#    . 금 블록 = 4 블록
+#    . 다이아몬드 블록 = 8 블록
+#    . 네더라이트 블록 = 16 블록
+
+# v1.0.0 [ MC1.19 / SK 2.6.2 ] (220703)
+#  - 도착 위치 바닥(가상 블록) 생성
+#  - 도착 위치를 벋어나면 원상복귀
+#  - 도착 소리 추가
+# v1.0.1 [ MC1.19 / SK 2.6.2 ] (220703)
+#  - 도착지에 다락문을 설치하면 방벽 대신 다락문이 동작함
+
+# ==================================================
+
+options:
+	ID: PistonLift
+	SOUND.DEPART: BLOCK_BEACON_ACTIVATE
+	SOUND.ARRIVE: BLOCK_NOTE_BLOCK_BELL
+
+aliases:
+	copper block = minecraft:copper_block, minecraft:exposed_copper, minecraft:weathered_copper, minecraft:oxidized_copper
+	levitation_blocks = minecraft:iron_block, minecraft:copper_block, minecraft:gold_block, minecraft:diamond_block, minecraft:netherite_block
+	
+# ==================================================
+
+on step on piston:
+	stop if player is sneaking
+	event-block is minecraft:piston[extended=false;facing=up]
+
+	set {_hight} to y coord of event-block + 0.5
+	set {_hight.max} to {_hight}
+	set {_direction::*} to up and down, north, east, south, west
+	set {_search::*} to event-block
+	while {_search::*} is set:
+		clear {_next::*}
+		loop {_search::*}:
+			delete {_search::%loop-index%}
+			set {_search} to loop-value
+			loop fxPistonLift_getBlocksAt( {_search}, {_direction::*} ):
+				loop-block is levitation_blocks
+				set {_key} to "%location of loop-block%"
+				{_check::%{_key}%} is not set
+				set {_check::%{_key}%} to true
+				add fxPistonLift_getPoint( loop-block ) to {_hight.max}
+				if {_hight.max} > 256:
+					set {_hight.max} to 256 
+					stop all loops
+				set {_next::%{_key}%} to loop-block
+		set {_search::*} to {_next::*}
+	stop if {_hight} is {_hight.max}
+
+	play sound "{@SOUND.DEPART}" to player
+
+	set {_point} to {_hight.max} - {_hight}
+	loop x coord of event-block and z coord of event-block:
+		set {_value::1} to loop-value-1
+		loop -0.5 and 0.5:
+			set {_value::2} to loop-value-2
+			add sum( {_value::*} ) to {_range::*}
+	while player is online:
+		wait 1 tick
+		stop loop if x coord of player is not between {_range::1} and {_range::2}
+		stop loop if z coord of player is not between {_range::3} and {_range::4}
+		stop loop if player is sneaking
+		if y coord of player < {_hight.max}:
+			stop loop if {_floor} is set
+			set {_this.point} to {_hight.max} - y coord of player
+			set {_per} to ( {_point} - {_this.point} ) / ( {_point} * 6 )
+			set y of velocity of player to {_this.point} * {_per} + 0.01
+		else if {_floor} is not set:
+			set {_floor} to block 0.25 down player
+			if {_floor} is not air:
+				set {_floor.type} to type of {_floor}
+			else:
+				set {_floor.type} to barrier
+			if {_floor.type} is trapdoor:
+				close {_floor}
+			else:
+				make player see {_floor} as {_floor.type}
+			play sound "{@SOUND.ARRIVE}" to player
+	if {_floor.type} is not trapdoor:
+		make player see {_floor} as {_floor}
+
+#> 아이템 타입마다 지정된 포인트를 반환
+#> @param t 블록
+#> @return 포인트
+#> ****
+#> @invisible
+function fxPistonLift_getPoint(t:item type) :: integer:
+	if {_t} is iron block:
+		return 1
+	else if {_t} is copper block:
+		return 2
+	else if {_t} is gold block:
+		return 4
+	else if {_t} is diamond block:
+		return 8
+	else if {_t} is netherite block:
+		return 16
+	else:
+		return 0
+
+#> 블록으로부터 지정된 방향만큼 떨어진 블록들을 반환
+#> @param b 블록
+#> @param dir 방향
+#> @return 지정된 방향의 블록들
+#> ****
+#> @invisible
+function fxPistonLift_getBlocksAt(b:block, dir:directions) :: blocks:
+	loop {_dir::*}:
+		add block loop-value {_b} to {_blocks::*}
+	return {_blocks::*}

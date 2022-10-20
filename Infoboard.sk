@@ -1,0 +1,29 @@
+options:
+	ID: Infoboard
+
+# on join with priority low:
+# 	Infoboard_update(player)
+
+# on swap item with priority low:
+# 	Infoboard_update(player, off hand tool, tool)
+
+# on drop with priority low:
+# 	Infoboard_update(player)
+
+# on pick up with priority low:
+# 	hotbar slot of player is air
+# 	loop integers from 0 to index of hotbar slot of player - 1:
+# 		slot loop-integer of inventory of player is air
+# 		stop
+# 	Infoboard_update(player, event-item)
+
+# on tool change with priority low:
+# 	Infoboard_update(player, tool)
+
+# on inventory close with priority low:
+# 	Infoboard_update(player)
+
+# function Infoboard_update(p:player, hand:object="", off_hand:object=""):
+# 	set {_attackDamage} to Player_finalAttackDamage({_p}, {_hand}, {_off_hand})
+# 	set {_lines::1} to "공격력: %{_attackDamage}%"
+# 	Scoreboard_sidebar({_p}, "정보", {_lines::*})

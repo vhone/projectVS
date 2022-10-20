@@ -1,0 +1,162 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+
+# 210330
+#  - 생성
+# 220715
+#  - 병합 EffsendError()
+#  - 파일명 Logger.sk 변경
+# 220820
+#  - 추가 Debug_print()
+
+#> id를 이름으로 하루에 한 파일씩 생성합니다.
+#> 날자, 시간, 데이터 순으로 기록합니다.
+#> @param id 파일이름
+#> @param info 기록할 데이터
+function Logger(id:text, data:objects):
+	set {_day} to now formatted with "YYYY.MM.dd"
+	set {_time} to now formatted with "HH:mm:ss"
+	loop {_data::*}:
+		loop-value is not text
+		set {_data::%loop-index%} to "%loop-value%"
+	log join "" and {_day}, {_time}, {_data::*} with "	" to "%{_id}%_%{_day}%"
+
+#> 로그 저장용 함수
+#> @param id 
+#> @param s 누가
+#> @param p 누구를
+#> @param t 어떤값을
+#> @param b 이전값
+#> @param v 변경량
+#> @param a 이후값
+function Logger_formatter(id:text, s:sender, p:player, t:text, b:object, v:object, a:object):
+	set {_info::*} to {_s} and {_p}, {_t}, {_b}, {_v}, {_a}
+	Logger( {_id}, {_info::*} )
+
+
+
+#> 오류 메세지를 수신자에게 전달합니다.
+#> @param script 스크립트
+#> @param component 발생 위치
+#> @param msg 오류 메세지
+#> @param recipients 수신자
+#> ```
+#> Error( script, "item is not set.", "fxToolBoxParseToItem()", console )
+#> ```
+function Error(script:text, msg:text, stacks:texts, recipients:senders=console):
+	replace "\" with "." in {_script}
+	send join "&c[ERROR] " and {_script}, ".sk" to {_recipients::*}
+	send join "	&c> " and {_msg} to {_recipients::*}
+	loop {_stacks::*}:
+		set {_value} to loop-value
+		set {_value} to join {_value} and "()" if last 2 character of {_value} is not "()"
+		send join "		&c- " and {_value} to {_recipients::*}
+		
+#> 오류 메세지를 수신자에게 전달합니다.
+#> @param script 스크립트
+#> @param component 발생 위치
+#> @param msg 오류 메세지
+#> @param recipients 수신자
+#> ```
+#> Error( script, "fxToolBoxParseToItem()", "item is not set.", console )
+#> ```
+function Warning(script:text, msg:text, stacks:texts, recipients:senders=console):
+	replace "\" with "." in {_script}
+	send join "&e[WARN] " and {_script}, ".sk" to {_recipients::*}
+	send join "	&e> " and {_msg} to {_recipients::*}
+	loop {_stacks::*}:
+		set {_value} to loop-value
+		set {_value} to join {_value} and "()" if last 2 character of {_value} is not "()"
+		send join "		&e- " and {_value} to {_recipients::*}
+
+#> 콘솔에 함수 오류를 출력합니다.
+#> @param script 스크립트
+#> @param funcName 함수 이름
+#> @param paramName 파라메터 이름
+function WarningEmptyParameter(script:text, funcName:text, paramName:text):
+	Error({_script}, "parameter %{_paramName}% is empty.", {_funcName}, console )
+
+
+
+# ==================================================
+
+# 220727
+#  - 생성
+
+options:
+	ID: Debug
+
+#> @param script 스크립트
+#> @param element 요소
+function Debug_record(script:text, element:text):
+	replace "\" with "." in {_script}
+	set {_element} to join {_element} and "()" if last 2 character of {_element} is not "()"
+	add "%{_script}%.%{_element}%" to {{@ID}::*}
+
+#> 마지막 요소 제거
+function Debug_close():
+	delete {{@ID}::%number of {{@ID}::*}%}
+
+#> 디버깅 스택 제거
+function Debug_clear():
+	delete {{@ID}::*}
+
+#> @return 디버깅 스택
+function Debug_stack() :: texts:
+	set {_reverse::*} to reversed {{@ID}::*}
+	return {_reverse::*}
+
+# command /{@ID}:
+# 	trigger:
+# 		Debug_record(script, "name")
+# 		Debug_record(script, "name2")
+# 		Debug_record(script, "name3")
+# 		send "Debug_stack()=%Debug_stack()%" to console
+# 		Debug_close()
+# 		send "Debug_stack()=%Debug_stack()%" to console
+# 		Debug_close()
+# 		send "Debug_stack()=%Debug_stack()%" to console
+# 		Debug_close()
+# 		send "Debug_stack()=%Debug_stack()%" to console
+
+
+
+
+#> @param script 스크립트
+#> @param msg 이벤트 - "[]", 변수 = "{}"
+function Debug_print(script:text, msg:text):
+
+	# Prefix
+	set {_script} to last element of Text_splitInHalf( {_script}, "\", false) if {_script} contains "\"
+	set {_prefix} to "[&8%{_script}%&r]"
+
+	# Variable
+	set {_split::*} to Text_splitWithBracket({_msg}, "{", "}" )
+	loop {_split::*}:
+		if loop-value match "^\{.*\}$":
+			add "&9%loop-value%&r" to {_word::*}
+		else:
+			add loop-value to {_word::*}
+	delete {_split::*}
+	if {_word::*} is set:
+		set {_msg} to join {_word::*}
+		delete {_word::*}
+	
+	# Event
+	set {_split::*} to Text_splitWithBracket({_msg}, "[", "]" )
+	loop {_split::*}:
+		if loop-value match "^\[.*\]$":
+			set {_event} to subtext of loop-value from 2 to length of loop-value - 1
+			add "[&e%{_event}%&r]" to {_word::*}
+		else:
+			add loop-value to {_word::*}
+	delete {_split::*}
+	if {_word::*} is set:
+		set {_msg} to join {_word::*}
+		delete {_word::*}
+	send join {_prefix}, {_msg} with " " to console
+
+# command /debugmsg:
+# 	trigger:
+# 		Debug_print(script, "테스트 메세지 {변수}를 추가한 경우,  {변수}를 추가한 경우 [on click]")

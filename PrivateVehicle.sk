@@ -1,0 +1,66 @@
+
+options:
+	ID: PrivateVehicle
+
+	PUBLIC: 공용탈것
+	PRIVATE: 개인탈것
+
+	META.PLAYER: metadata "privatevehicle.player"
+	META.SNEAKING: metadata "privatevehicle.sneaking"
+
+# 즉시 탑승, 즉시 회수?
+
+on right click with any boat or any minecart with priority highest:
+	clicked block is set
+	set {_loc} to event.getInteractionPoint()
+	set {_block} to block at {_loc}
+	if player is sneaking:
+		set {_sneaking} to true
+	else:
+		set {_sneaking} to false
+	set {@META.SNEAKING} of {_block} to {_sneaking}
+	set {@META.PLAYER} of {_block} to player
+
+on vehicle create with priority highest:
+	set {_vehicle} to event.getVehicle()
+	set {_loc} to location of {_vehicle}
+	set {_block} to block at {_loc}
+	set {_player} to {@META.PLAYER} of {_block}
+	delete {@META.PLAYER} of {_block}
+	{_player} is set
+	set {_sneaking} to {@META.SNEAKING} of {_block}
+	delete {@META.SNEAKING} of {_block}
+	if {_sneaking} is true:
+		set {_scope} to "{@PRIVATE}"
+	else:
+		set {_scope} to "{@PUBLIC}"
+	set name of {_vehicle} to "%{_player}%의 %{_scope}%"
+	{_vehicle}.setCustomNameVisible(true)
+
+# on vehicle damage with priority highest:
+	# set {_vehicle} to event.getVehicle()
+	# set {_name} to name of {_vehicle}
+	# {_name} is set
+	# set {_data::*} to {_name} parsed as "%offline player%의 %text%"
+	# {_data::1} is not player
+	# cancel event
+	# send action bar "파괴할 수 없습니다" to player
+
+on vehicle destroy with priority highest:
+	set {_vehicle} to event.getVehicle()
+	set {_name} to name of {_vehicle}
+	{_name} is set
+	set {_data::*} to {_name} parsed as "%offline player%의 %text%"
+	{_data::1} is not player
+	cancel event
+	send action bar "파괴할 수 없습니다" to player
+
+on vehicle enter with priority highest:
+	set {_vehicle} to event.getVehicle()
+	set {_name} to name of {_vehicle}
+	{_name} is set
+	set {_data::*} to {_name} parsed as "%offline player%의 %text%"
+	stop if {_data::2} is "{@PUBLIC}"
+	{_data::1} is not player
+	cancel event
+	send action bar "탑승할 수 없습니다" to player

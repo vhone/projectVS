@@ -1,0 +1,645 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+# 배포 : https://www.koreaminecraft.net/scriptqna/1706450
+
+# 220723
+#  - 생성
+
+
+
+import:
+
+	# net.kyori.adventure.text.TextComponent
+
+	net.kyori.adventure.text.Component
+	# https://jd.adventure.kyori.net/api/4.11.0/net/kyori/adventure/text/Component.html
+
+	net.kyori.adventure.text.TextComponent
+
+	net.kyori.adventure.text.KeybindComponent
+	# https://minecraft.fandom.com/wiki/Controls
+
+	net.kyori.adventure.text.SelectorComponent
+
+	net.kyori.adventure.text.TranslatableComponent
+	# https://jd.adventure.kyori.net/api/4.11.0/net/kyori/adventure/text/TranslatableComponent.html
+	# https://mcasset.cloud/1.19/assets/minecraft/lang
+	# C:\Users\kiyou\AppData\Roaming\.minecraft\assets\objects\e6c3368ba163de98be6acaa4b8ed533277b369f7
+
+	net.kyori.adventure.text.StorageNBTComponent
+
+	net.kyori.adventure.text.EntityNBTComponent
+
+	net.kyori.adventure.text.BlockNBTComponent
+
+	net.kyori.adventure.text.format.TextColor
+	net.kyori.adventure.text.format.NamedTextColor
+	net.kyori.adventure.text.format.TextDecoration
+
+	net.kyori.adventure.text.event.ClickEvent
+	net.kyori.adventure.text.event.HoverEvent
+	net.kyori.adventure.text.event.HoverEventSource
+	# https://jd.adventure.kyori.net/api/4.11.0/net/kyori/adventure/text/event/HoverEvent.html
+
+	# https://jd.adventure.kyori.net/api/4.11.0/net/kyori/adventure/text/event/HoverEvent.ShowItem.html
+	net.kyori.adventure.nbt.api.BinaryTagHolder
+
+	net.kyori.adventure.key.Key
+	# https://jd.adventure.kyori.net/key/4.11.0/net/kyori/adventure/key/Key.html
+
+	net.kyori.adventure.inventory.Book
+
+options:
+	ID: Component
+
+#> @since MC 1.19, Skript 2.6.2, skript-refelct 2.3
+function HoverEvent_showText(t:text) :: object:
+	set {_hover} to HoverEvent.showText(Component.text({_t}))
+	return {_hover}
+
+# command /{@ID}.show.text:
+# 	trigger:
+# 		set {_hover} to HoverEvent_showItem(tool)
+# 		set {_comp} to Component.text("Item").hoverEvent({_hover})
+# 		player.sendMessage({_comp})
+
+
+
+#> @since MC 1.19, Skript 2.6.2, skript-refelct 2.3
+function HoverEvent_showLocation(l:location) :: object:
+	set {_builder} to Component.text()
+	{_builder}.append(Component.text("%world of {_l}%"))
+	{_builder}.append(Component.newline())
+	{_builder}.append(Component.text(join "%x coord of {_l}%" and "%y coord of {_l}%", "%z coord of {_l}%" with ", "))
+	return {_builder}.build()
+
+
+
+#> @since MC 1.19, Skript 2.6.2, skript-refelct 2.3
+function HoverEvent_showPlayer(p:offline player) :: object:
+	set {_builder} to Component.text()
+	if display name of {_p} is set:
+		{_builder}.append(Component.text("%name of {_p}% (%display name of {_p}%)"))
+	else:
+		{_builder}.append(Component.text("%name of {_p}% [&bOffline]"))
+	{_builder}.append(Component.newline()).append(Component.text("&7UUID: &8%uuid of {_p}%"))
+	set {_firstLogin} to first login of {_p} formatted with "YYYY년 MM월 YY일"
+	{_builder}.append(Component.newline()).append(Component.text("&7Birth: &8%{_firstLogin}%"))
+	return {_builder}.build()
+
+#> @since MC 1.19, Skript 2.6.2, skript-refelct 2.3
+function HoverEvent_showEntity(e:entity) :: object:
+	if {_e} is a offline player:
+		return HoverEvent_showPlayer({_e})
+	else:
+		set {_type} to {_e}.getType().toString().toLowerCase()
+		set {_key} to Key.key(Key.MINECRAFT_NAMESPACE, {_type})
+		set {_uuid} to {_e}.getUniqueId()
+		set {_name} to {_e}.customName()
+		set {_hover} to HoverEvent.showEntity(HoverEvent.ShowEntity.of({_key}, {_uuid}, {_name}))
+		return {_hover}
+
+# command /{@ID}.show.entity [<player>]:
+# 	trigger:
+# 		set {_entity} to arg-player
+# 		set {_entity} to targeted entity if {_entity} is not set
+# 		if {_entity} is not set:
+# 			send "엔티티 없음"
+# 			stop
+# 		set {_hover} to HoverEvent_showEntity({_entity})
+# 		set {_comp} to Component.text("Entity").hoverEvent({_hover})
+# 		player.sendMessage({_comp})
+
+
+
+#> @since MC 1.19, Skript 2.6.2, skript-refelct 2.3
+function HoverEvent_showItem(i:item) :: object:
+	set {_nbt} to NBT_getItemMeta({_i})
+	set {_holder} to BinaryTagHolder.of({_nbt}.toString()) if {_nbt} is set
+	set {_type} to {_i}.getType().toString().toLowerCase()
+	set {_key} to Key.key(Key.MINECRAFT_NAMESPACE, {_type})
+	set {_amount} to {_i}.getAmount()
+	set {_hover} to HoverEvent.showItem(HoverEvent.ShowItem.of({_key}, {_amount}, {_holder}))
+	return {_hover}
+
+# command /{@ID}.show.item [<item>]:
+# 	trigger:
+# 		set {_item} to arg-item
+# 		set {_item} to tool if {_item} is not set
+# 		if {_item} is not set:
+# 			send "아이템 없음"
+# 			stop
+# 		set {_hover} to HoverEvent_showItem({_item})
+# 		set {_comp} to Component.text("Item").hoverEvent({_hover})
+# 		player.sendMessage({_comp})
+
+
+
+#> @since MC 1.19, Skript 2.6.2, skript-refelct 2.3
+function ClickEvent_changePage(page:integer) :: object:
+	return ClickEvent.changePage({_page})
+
+#> @since MC 1.19, Skript 2.6.2, skript-refelct 2.3
+function ClickEvent_copyToClipboard(text:text) :: object:
+	return ClickEvent.copyToClipboard({_text})
+
+#> @since MC 1.19, Skript 2.6.2, skript-refelct 2.3
+function ClickEvent_openFile(file:text) :: object:
+	return ClickEvent.openFile({_file})
+
+#> @since MC 1.19, Skript 2.6.2, skript-refelct 2.3
+function ClickEvent_openUrl(url:text) :: object:
+	return ClickEvent.openUrl({_url})
+
+#> @since MC 1.19, Skript 2.6.2, skript-refelct 2.3
+function ClickEvent_runCommand(command:text) :: object:
+	return ClickEvent.runCommand({_command})
+
+#> @since MC 1.19, Skript 2.6.2, skript-refelct 2.3
+function ClickEvent_suggestCommand(command:text) :: object:
+	return ClickEvent.suggestCommand({_command})
+
+
+
+#> @param text 문자열
+#> @param option 컬러(##000000) or 호버 / 클릭 이벤트
+#> @return 문자열 컴포넌트
+#> @since MC 1.19, Skript 2.6.2, skript-refelct 2.3
+function Component_text(value:object, option::1:object="", option::2:object="", option::3:object="") :: object:
+	loop {_option::*}:
+		if loop-value do not match "##([0-9a-fA-F]{3}){1,2}":
+			set {_color} to TextColor.fromHexString(loop-value)
+		else if loop-value is instance of HoverEventSource:
+			set {_hover} to loop-value
+		else if loop-value is instance of ClickEvent:
+			set {_click} to loop-value
+	if {_color} is not set:
+		if {_value} is text:
+			set {_comp} to Component.text({_value})
+		else if {_value} is item:
+			set {_comp} to Component.translatable({_value}.getType().translationKey())
+		else if {_value} is itemtype:
+			set {_comp} to Component.translatable({_value}.getMaterial().translationKey())
+	else:
+		if {_value} is text:
+			set {_comp} to Component.text({_value}, {_color})
+		else if {_value} is item:
+			set {_comp} to Component.translatable({_value}.getType().translationKey(), {_color})
+		else if {_value} is itemtype:
+			set {_comp} to Component.translatable({_value}.getMaterial().translationKey(), {_color})
+	set {_comp} to {_comp}.hoverEvent({_hover}) if {_hover} is set
+	set {_comp} to {_comp}.clickEvent({_click}) if {_click} is set
+	return {_comp}
+
+
+
+#> @param components 컴포넌트 리스트
+#> @param transition 접속사
+#> @return 합쳐진 컴포넌트
+function Component_join(components:objects, transition:text="") :: object:
+	set {_size} to number of {_components::*}
+	if {_size} is 1:
+		if {_components::1} is text:
+			return Component.text({_components::1})
+		else if {_components::1} is instance of Component:
+			return {_components::1}
+	else:
+		set {_builder} to Component.text()
+		loop {_size} times:
+			set {_comp} to {_components::%loop-number%}
+			set {_comp} to Component.text({_comp}) if {_comp} is text
+			{_comp} is instance of Component
+			{_builder}.append({_comp})
+			if {_transition} is not "":
+				loop-number < {_size}
+				{_builder}.append(Component.text({_transition}))
+		return {_builder}.build()
+
+
+
+function Component_instanceOf(value:object) :: boolean:
+	return true if {_value} is instance of Component
+	return false
+
+
+#> @param recipient 수신자
+#> @param component 메세지 컴포넌트
+#> @since MC 1.19, Skript 2.6.2, skript-refelct 2.3
+function Component_send(recipient:senders, component:objects):
+	stop if {_component::*} is not set
+	if number of {_component::*} = 1:
+		set {_comp} to {_component::1}
+	else:
+		set {_comp} to Component_join({_component::*}, newline)
+	loop {_recipient::*}:
+		loop-value is a player
+		loop-value.sendMessage({_comp})
+
+#> @param recipient 수신자
+#> @param component 메세지 컴포넌트
+#> @since MC 1.19, Skript 2.6.2, skript-refelct 2.3
+function Component_sendActionBar(recipient:senders, component:objects):
+	if number of {_component::*} = 1:
+		set {_comp} to {_component::1}
+	else:
+		set {_comp} to Component_join({_component::*}, newline)
+	loop {_recipient::*}:
+		loop-value is a player
+		loop-value.sendActionBar({_comp})
+
+#> @param recipient 수신자
+#> @param pages 페이지 목록
+#> @since MC 1.19, Skript 2.6.2, skript-refelct 2.3
+function Component_sendBook(recipient:senders, pages:objects):
+	set {_builder} to Book.builder().title(Component.text("")).author(Component.text(""))
+	loop {_pages::*}:
+		set {_page} to loop-value
+		if {_page} is text:
+			set {_page} to Component.text({_page})
+		else if {_page} is not instance of Component:
+			set {_page} to Component.text("%{_page}%")
+		{_builder}.addPage({_page})
+	set {_book} to {_builder}.build()
+	loop {_recipient::*}:
+		loop-value is a player
+		loop-value.openBook({_book})
+
+
+# ==================================================
+
+
+
+#> 툴팁을 포함하는 문자열을 반환합니다.
+#> @param char 머릿문자
+#> @param info 툴팁에 표시할 정보
+#> @return 머릿문자 컴포넌트
+function Component_infoChar(char:text, info:texts) :: object:
+	set {_now} to now formatted with "HH:mm:ss"
+	replace "\" with "." in {_info::1}
+	set {_info} to join {_info::*} with "%newline%&7> "
+	set {_hover} to HoverEvent_showText("[%{_now}%] %{_info}%")
+	return Component.text({_char}).hoverEvent({_hover})
+
+
+
+#> @param sender 송신자
+#> @return 송신자 컴포넌트
+function Component_sender(sender:sender) :: object:
+	return Component.text(display name of {_sender}).hoverEvent(HoverEvent_showPlayer({_sender})) if {_sender} is player
+	return Component.text("&c완장").hoverEvent(HoverEvent_showText("CONSOLE")) if {_sender} is console
+
+
+
+function Component_formula(formula:text) :: object:
+	replace " " with "" in {_formula}
+	set {_formula::*} to {_formula} split at "" where [ input is not "" ]
+	set {_data::*} to Calculater( {_formula} )
+	set {_result} to {_data::1}
+
+	loop {_data::2} split at nl:
+		set {_pos} to uncolored Text_inBracket( loop-text, "[", "]" ) parsed as integer
+		set {_end} to {_pos} + length of Text_inBracket( loop-text, """" )
+		set {_formula::%{_pos}%b} to last color of loop-text
+		set {_formula::%{_end}%a} to "&7"
+		add loop-text to {_log::*}
+	
+	set {_hover} to HoverEvent_showText(join "&7%join {_formula::*}% &f= &a%{_result}%" and {_log::*} with "%newline% - ")
+	set {_component} to Component.text("&f[&a%{_result}%&f]").hoverEvent({_hover})
+	return {_component}
+
+
+
+#> @param sender 송신자
+#> @param message 텍스트 메세지
+#> @return 채팅 메세지 컴포넌트
+function Component_chatMessage(sender:sender, message:text) :: object:
+	set {_builder} to Component.text().color(NamedTextColor.GRAY)
+	
+	# 송신자가 콘솔 또는 컴맨드 블록
+	if {_sender} is console or command block:
+		{_builder}.append(Component.text({_message}))
+	
+	# 송신자가 플레이어
+	else:
+		loop fxComponent_chatMessageSplit( {_message} ):
+			set {_parts} to loop-text
+
+			set {_bracket} to join ( first character of {_parts} ) and ( last character of {_parts} )
+
+			# 이스케이프
+			if {_bracket} is """""":
+				set {_subtext} to subtext of {_parts} from 2 to ( length of {_parts} ) - 1 
+				# {_builder}.append(Compoenent_tooltip({_sender}, {_subtext}))
+				{_builder}.append(Component.text({_subtext}))
+
+			# 수식
+			else if {_bracket} is "[]":
+				set {_subtext} to subtext of {_parts} from 2 to ( length of {_parts} ) - 1 
+				{_builder}.append(Component_formula({_subtext}))
+
+			# 일반
+			else:
+
+				# 슬롯 키워드
+				loop integers from 0 to 40:
+					set {_i} to loop-integer
+					set {_index} to index of "<slot.%{_i}%>" in {_parts}
+					set {_key::<slot.%{_i}%>} to "<slot.%{_i}%>" if {_index} > 0
+					if {_i} < 10:
+						set {_index} to index of "<slot.0%{_i}%>" in {_parts}
+						set {_key::<slot.0%{_i}%>} to "<slot.0%{_i}%>" if {_index} > 0
+				# 장비 키워드
+				loop "tool" and "hand", "subtool", "subhand", "head", "helmet", "chest", "chestplate", "leg", "leggings", "foot", "boots":
+					set {_key} to loop-text-2
+					set {_index} to index of "<%{_key}%>" in {_parts}
+					{_index} > 0
+					set {_key::<%{_key}%>} to "<%{_key}%>"
+				# 특수 키워드
+				loop "loc" and "location":
+					set {_key} to loop-text-2
+					set {_index} to index of "<%{_key}%>" in {_parts}
+					{_index} > 0
+					set {_key::<%{_key}%>} to "<%{_key}%>"
+
+				# 키워드 없음
+				if {_key::*} is not set:
+					{_builder}.append(Component.text(LangConverter({_parts})))
+
+				# 키워드 치환
+				else:
+					loop Text_splitWithWord({_parts}, {_key::*}):
+						set {_word} to loop-text-2
+						{_word} is not ""
+
+						# 문자열
+						if {_word} is not {_key::%{_word}%}:
+							{_builder}.append(Component.text(LangConverter({_word})))
+						
+						# 키워드
+						else:
+							if {_cache::%{_word}%} is not set:
+								if {_word} is "<loc>" or "<location>":
+									set {_hover} to HoverEvent_showLocation(location of {_sender})
+									set {_cache::%{_word}%} to Component.text("&f[&b좌표&f]").hoverEvent({_hover})
+								else:
+									if {_word} is "<tool>" or "<hand>":
+										set {_item} to tool of {_sender}
+									else if {_word} is "<subtool>" or "<subhand>":
+										set {_item} to off hand tool of {_sender}
+									else if {_word} is "<head>" or "<helmet>":
+										set {_item} to helmet of {_sender}
+									else if {_word} is "<chest>" or "<chestplate>":
+										set {_item} to chestplate of {_sender}
+									else if {_word} is "<leg>" or "<leggings>":
+										set {_item} to leggings of {_sender}
+									else if {_word} is "<foot>" or "<boots>":
+										set {_item} to boots of {_sender}
+									else if {_word} match "\<slot\.[0-9]{1,2}\>":
+										set {_slot::*} to {_word} parsed as "\<slot\.%integer%\>"
+										set {_item} to slot {_slot::1} of inventory of {_sender}
+									set {_hover} to HoverEvent_showItem({_item})
+
+									# 괄호
+									set {_link.builder} to Component.text().color(NamedTextColor.WHITE)
+									{_link.builder}.append(Component.text("["))
+									if name of {_item} is set:
+										{_link.builder}.append(Component.text(name of {_item}, NamedTextColor.AQUA).hoverEvent({_hover}))
+									else:
+										{_link.builder}.append(Component.translatable({_item}.getType().translationKey(), NamedTextColor.AQUA).hoverEvent({_hover}))
+										{_link.builder}.append(Component.text("]"))
+									set {_cache::%{_word}%} to {_link.builder}.build()
+							{_builder}.append({_cache::%{_word}%})
+
+	# 메세지 출력
+	return {_builder}.build()
+
+
+
+#> @invisible
+function fxComponent_chatMessageSplit(t:text) :: texts:
+	set {_char::*} to split {_t} at "" where [ input is not "" ]
+	set {_size} to size of {_char::*}
+	set {_i}, {_layer} to 0
+	set {_escape} to false
+	while {_i} < {_size}:
+
+		add 1 to {_i}
+
+		if {_char::%{_i}%} is "\":
+			if {_char::%{_i}+1%} is "[" or "]", """":
+				add 1 to {_i}
+
+			add {_char::%{_i}%} to {_stack::*}
+
+		else if {_char::%{_i}%} is "[":
+			if {_escape} is false:
+				if {_layer} is 0:
+					add join {_stack::*} to {_list::*}
+					clear {_stack::*}
+				add 1 to {_layer}
+			
+			add {_char::%{_i}%} to {_stack::*}
+
+		else if {_char::%{_i}%} is "]":
+			add {_char::%{_i}%} to {_stack::*}
+
+			if {_layer} > 0:
+				remove 1 from {_layer}
+				if {_layer} is 0:
+					add join {_stack::*} to {_list::*}
+					clear {_stack::*}
+
+		else if {_char::%{_i}%} is """":
+			if {_layer} is 0:
+				if {_escape} is false:
+					set {_escape} to true
+					add join {_stack::*} to {_list::*}
+					clear {_stack::*}
+					add {_char::%{_i}%} to {_stack::*}
+				
+				else:
+					set {_escape} to false
+					add {_char::%{_i}%} to {_stack::*}
+					add join {_stack::*} to {_list::*}
+					clear {_stack::*}
+		
+		else:
+			add {_char::%{_i}%} to {_stack::*}
+
+	add join {_stack::*} to {_list::*}
+	return {_list::*}
+
+
+
+#> @param char 머릿글자
+#> @param info 머릿글자 툴팁
+#> @param senderComp 송신자 컴포넌트
+#> @param msgComp 메세지 컴포넌트
+#> @return 변형된 메세지 컴포넌트
+function Component_chatMessageFormmatter(char:text, info:texts, senderComp:object, msgComp:objects ) :: object:
+	set {_builder} to Component.text()
+	{_builder}.append(Component_infoChar({_char}, {_info::*}))
+	{_builder}.append(Component.space())
+	{_builder}.append({_senderComp})
+	{_builder}.append(Component.text(" : "))
+	loop {_msgComp::*}:
+		{_builder}.append(loop-value)
+	return {_builder}.build()
+
+
+
+#> @param key 번역 메세지 키
+#> @param arg 번역 메세지 변수
+#> @return 변역 메세지 컴포넌트
+function Component_eventMessage(info:texts, key:text, arg: objects) :: object:
+	loop {_arg::*}:
+		if loop-value is entity:
+			set {_name} to display name of loop-value
+			set {_argComp::%loop-index%} to Component.text({_name}, NamedTextColor.WHITE).hoverEvent(HoverEvent_showPlayer(loop-value))
+	set {_builder} to Component.text().color(NamedTextColor.YELLOW)
+	{_builder}.append(Component_infoChar(">&l>&r ", {_info::*}))
+	{_builder}.append(Component.translatable({_key}).args({_argComp::*}))
+	return {_builder}.build()
+
+
+
+# ==================================================
+
+
+
+#> 시스템에서 플레이어에게 메세지를 보냅니다.
+#> @param info 시스템 정보
+#> @param patterns 메세지 패턴
+#> @param args 메세지 인수
+#> @return 시스템 메세지 컴포넌트
+function Component_systemMessage(info:texts, patterns:texts, args:objects="", private:boolean=true) :: object:
+	set {_builder} to Component.text()
+	if {_private} is true:
+		{_builder}.color(NamedTextColor.GRAY)
+	else:
+		{_builder}.color(NamedTextColor.YELLOW)
+
+	set {_patterns.size} to number of {_patterns::*}
+	loop {_patterns.size} times:
+		set {_pattern} to {_patterns::%loop-number%}
+
+		# 머릿문자
+		if loop-number is 1:
+			{_builder}.append(Component_infoChar( "&e>&l>&r ", {_info::*} ))
+		else:
+			{_builder}.append(Component.text("&l  &r"))
+
+		# 인수가 없는 경우 문자열 변환
+		if {_args::*} is "":
+			{_builder}.append(Component.text({_pattern}))
+
+		# 인수가 있는 경우 패턴 변환
+		else:
+			loop Text_splitWithBracket({_pattern}, "${", "}"):
+				set {_text} to loop-value-2
+
+				# 패턴 문자인 경우
+				if {_text} don't match "\$\{[^}]+\}":
+					{_builder}.append(Component.text({_text}))
+
+				# 패턴 변수인 경우
+				else:
+					# 패턴 키 생성 (id, name, arg)
+					set {_split::*} to Text_splitInHalf(subtext of {_text} from 3 to length of {_text} - 1, ":")
+					{_split::*} is set
+					set {_id} to {_split::1}
+					set {_arg} to {_args::%{_id}%}
+					set {_name} to {_split::2}
+					if {_name} is not set:
+						if {_arg} is text:
+							set {_name} to {_arg}
+						else if {_arg} is item or entity:
+							name of {_arg} is set
+							set {_name} to name of {_arg}
+						else if {_arg} is instance of TextComponent:
+							set {_name} to 	{_arg}.content()
+					delete {_split::*}
+
+					# 호버 캐시 생성 - 표시 되는 툴팁 세팅
+					if {_cache.hover::%{_id}%} is not set:
+						if {_arg} is text:
+							set {_hover} to HoverEvent_showText({_arg})
+						else if {_arg} is item:
+							set {_hover} to HoverEvent_showItem({_arg})
+						else if {_arg} is offline player:
+							set {_hover} to HoverEvent_showPlayer({_arg})
+						else if {_arg} is entity:
+							set {_hover} to HoverEvent_showEntity({_arg})
+						else if {_arg} is instance of Component:
+							set {_hover} to {_arg}
+						set {_cache.hover::%{_id}%} to {_hover}
+						delete {_hover}
+
+					# 컴포넌트 생성 - 표기 되는 이름 세팅
+					if {_name} is set:
+						set {_component} to Component.text({_name}, NamedTextColor.WHITE)
+					else:
+						set {_component} to Component.translatable({_arg}.getType().translationKey(), NamedTextColor.WHITE)
+					set {_component} to {_component}.hoverEvent({_cache.hover::%{_id}%})
+					# 플레이어라면 Click도 동작해야함...? 시스템 메세지 인데..?
+
+					{_builder}.append({_component})
+					delete {_id}, {_arg}, {_name} and {_component}
+
+		if loop-number < {_patterns.size}:
+			{_builder}.append(Component.newline()) 
+
+	# 컴포넌트 출력
+	return {_builder}.build()
+
+# command /{@ID}.send.message1:
+# 	trigger:
+# 		set {_format} to "일반 메세지 한줄."
+# 		EffSendSystemMessage(script, player, {_format})
+# 		set {_format::1} to "일반 메세지 두줄1."
+# 		set {_format::2} to "일반 메세지 두줄2."
+# 		EffSendSystemMessage(script, player, {_format::*})
+
+# command /{@ID}.send.message2:
+# 	trigger:
+# 		set {_format::1} to "${1:플레이어}는(는) ${2:아이템}을(를) 들고 있습니다. ${3:글자}"
+# 		set {_format::2} to "${2}을(를) 소지한 ${1} 그리고 ${3}"
+# 		set {_value::*} to player and tool, "문자열 추가"
+# 		EffSendSystemMessage(script, player, {_format::*}, {_value::*})
+
+
+
+
+
+
+
+# 이쁘게 출력하기
+	# set {_msg} to {_sender}.toString()
+	# replace " " with "" in {_msg}
+	# loop {_msg} split at "":
+	# 	delete {_space::*}
+	# 	if loop-text is "{" or "[":
+	# 		add 1 to {_tab}
+	# 		loop {_tab} times:
+	# 			add "    " to {_space::*}
+	# 		set {_space} to join {_space::*} otherwise ""
+	# 		add "%loop-text%%newline%%{_space}%" to {_pretty::*}
+
+	# 	else if loop-text is "}" or "]":
+	# 		remove 1 from {_tab}
+	# 		loop {_tab} times:
+	# 			add "    " to {_space::*}
+	# 		set {_space} to join {_space::*} otherwise ""
+	# 		add "%newline%%{_space}%%loop-text%" to {_pretty::*}
+	# 		# add "%{_space}%%loop-text%%newline%" to {_pretty::*}
+
+	# 	else if loop-text is ",":
+	# 		loop {_tab} times:
+	# 			add "    " to {_space::*}
+	# 		set {_space} to join {_space::*} otherwise ""
+	# 		add "%loop-text%%newline%%{_space}%" to {_pretty::*}
+
+	# 	else:
+	# 		add loop-text to {_pretty::*}
+	# send join {_pretty::*} to console

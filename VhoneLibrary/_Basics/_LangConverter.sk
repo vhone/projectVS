@@ -1,0 +1,376 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+# 배포 : https://www.koreaminecraft.net/scriptqna/1706450
+
+# 220714
+#  - 생성
+
+import:
+	java.lang.Character
+
+options:
+	ID: LangConverter
+
+	ㄱ: 114
+	ㄲ: 82
+	ㄴ: 115
+	ㄷ: 101
+	ㄸ: 69
+	ㄹ: 102
+	ㅁ: 97
+	ㅂ: 113
+	ㅃ: 81
+	ㅅ: 116
+	ㅆ: 84
+	ㅇ: 100
+	ㅈ: 119
+	ㅉ: 87
+	ㅊ: 99
+	ㅋ: 122
+	ㅌ: 120
+	ㅍ: 118
+	ㅎ: 103
+	ㅏ: 107
+	ㅐ: 111
+	ㅑ: 105
+	ㅒ: 79
+	ㅓ: 106
+	ㅔ: 112
+	ㅕ: 117
+	ㅖ: 80
+	ㅗ: 104
+	ㅛ: 121
+	ㅜ: 110
+	ㅠ: 98
+	ㅡ: 109
+	ㅣ: 108
+
+command /{@ID} [<text>]:
+	aliases: kr
+	trigger:
+		# LangConverter(arg-text)
+		Chat_say( player, LangConverter(arg-text) )
+
+
+function LangConverter(text:text) :: text:
+
+	# 자모와 매칭되지 않은 대문자는 소문자 코드로 변환
+	set {_char::*} to {_text} split at "" where [ input is not "" ]
+	loop {_char::*}:
+		set {_code} to round(Character.getNumericValue(loop-value.charAt(0)) + 87)
+		remove 32 from {_code} if loop-value match "[E,O-R,T,W]"
+		set {_code::%loop-index%} to fxLangConverter_parseCode({_code})
+		delete {_code}
+
+	# 글자 나누기
+	set {_size} to number of {_char::*}
+	set {_i} to 1
+	while {_i} < {_size} + 1:
+
+		if {_i} > 500:
+			send "[%script%] Infinite Loop" to console
+			stop loop
+
+		if {_char::%{_i}%} do not match "[a-zA-Z]":
+			if {_stack::*} is set:
+				add fxLangConverter_assemble({_stack::1}, {_stack::2}, {_stack::3}) to {_sequence::*}
+				delete {_stack::*}
+			add {_char::%{_i}%} to {_sequence::*}
+			add 1 to {_i}
+
+		else:
+			if {_code::%{_i}%} is "ㄱ" or "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ":
+				if {_code::%{_i}%} is "ㄱ" or "ㄷ", "ㅂ", "ㅅ", "ㅈ":
+					{_code::%{_i}%} is {_code::%{_i}+1%}
+					set {_first} to fxLangConverter_combine({_code::%{_i}%} and {_code::%{_i}+1%})
+					add 2 to {_i}
+				if {_first} is not set:
+					set {_first} to {_code::%{_i}%}
+					add 1 to {_i}
+				# send "{_first}=%{_first}%" to console
+			
+			if {_code::%{_i}%} is "ㅏ" or "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ":
+				if {_code::%{_i}%} is "ㅏ" or "ㅑ", "ㅓ", "ㅕ", "ㅡ":
+					{_code::%{_i}+1%} is "ㅣ"
+					set {_middle} to fxLangConverter_combine({_code::%{_i}%} and {_code::%{_i}+1%})
+					add 2 to {_i}
+				if {_middle} is not set:
+					if {_code::%{_i}%} is "ㅗ":
+						if {_code::%{_i}+1%} is "ㅐ" or "ㅣ":
+							set {_middle} to fxLangConverter_combine({_code::%{_i}%} and {_code::%{_i}+1%})
+							add 2 to {_i}
+						else if {_code::%{_i}+1%} is "ㅏ":
+							if {_code::%{_i}+2%} is "ㅣ":
+								set {_middle} to fxLangConverter_combine({_code::%{_i}%} and {_code::%{_i}+1%}, {_code::%{_i}+2%})
+								add 3 to {_i}
+							else:
+								set {_middle} to fxLangConverter_combine({_code::%{_i}%} and {_code::%{_i}+1%})
+								add 2 to {_i}
+					else if {_code::%{_i}%} is "ㅜ":
+						if {_code::%{_i}+1%} is "ㅔ" or "ㅣ":
+							set {_middle} to fxLangConverter_combine({_code::%{_i}%} and {_code::%{_i}+1%})
+							add 2 to {_i}
+						else if {_code::%{_i}+1%} is "ㅓ":
+							if {_code::%{_i}+2%} is "ㅣ":
+								set {_middle} to fxLangConverter_combine({_code::%{_i}%} and {_code::%{_i}+1%}, {_code::%{_i}+2%})
+								add 3 to {_i}
+							else:
+								set {_middle} to fxLangConverter_combine({_code::%{_i}%} and {_code::%{_i}+1%})
+								add 2 to {_i}
+					if {_middle} is not set:
+						set {_middle} to {_code::%{_i}%}
+						add 1 to {_i}
+				# send "{_middle}=%{_middle}%" to console
+			
+			if {_first} and {_middle} is not set:
+				send "&c{_first}=%{_first}%, {_middle}=%{_middle}% 둘 다 없음" to console
+				stop loop
+
+			# 스택 다음이 자음일 때
+			else if {_middle} is not set:
+				if {_stack::*} is set:
+					add fxLangConverter_assemble({_stack::1}, {_stack::2}, {_stack::3}) to {_sequence::*}
+					delete {_stack::*}
+				else:
+					add {_first} to {_sequence::*}
+				delete {_first}
+
+			# 스택 다음이 모음일 때
+			else if {_first} is not set:
+				if {_stack::*} is set:
+					if {_stack::3} is "ㄳ" or "ㄵ", "ㄶ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅄ":
+						set {_split::*} to fxLangConverter_splite({_stack::3})
+						add fxLangConverter_assemble({_stack::1}, {_stack::2}, {_split::1}) to {_sequence::*}
+						set {_first} to {_split::2}
+						delete {_split::*}
+					else:
+						add fxLangConverter_assemble({_stack::1}, {_stack::2}) to {_sequence::*}
+						set {_first} to {_stack::3}
+					delete {_stack::*}
+				else:
+					add {_middle} to {_sequence::*}
+					delete {_middle}
+			
+			{_first} and {_middle} is set
+
+			if {_stack::*} is set:
+				add fxLangConverter_assemble({_stack::1}, {_stack::2}, {_stack::3}) to {_sequence::*} 
+				delete {_stack::*}
+			if {_code::%{_i}%} is "ㄱ" or "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ", "ㄷ", "ㄹ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅁ", "ㅂ", "ㅄ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ":
+				if {_code::%{_i}%} is "ㄱ":
+					{_code::%{_i}+1%} is "ㄱ" or "ㅅ"
+					set {_last} to fxLangConverter_combine( {_code::%{_i}%} and {_code::%{_i}+1%} )
+					add 2 to {_i}
+				else if {_code::%{_i}%} is "ㄴ":
+					{_code::%{_i}+1%} is "ㅈ" or "ㅎ"
+					set {_last} to fxLangConverter_combine( {_code::%{_i}%} and {_code::%{_i}+1%} )
+					add 2 to {_i}
+				else if {_code::%{_i}%} is "ㄹ":
+					{_code::%{_i}+1%} is "ㄱ" or "ㅁ", "ㅂ", "ㅅ", "ㅌ", "ㅍ", "ㅎ"
+					set {_last} to fxLangConverter_combine( {_code::%{_i}%} and {_code::%{_i}+1%} )
+					add 2 to {_i}
+				else if {_code::%{_i}%} is "ㅂ":
+					{_code::%{_i}+1%} is "ㅅ"
+					set {_last} to fxLangConverter_combine( {_code::%{_i}%} and {_code::%{_i}+1%} )
+					add 2 to {_i}
+				if {_last} is not set:
+					set {_last} to {_code::%{_i}%}
+					add 1 to {_i}
+				# send "{_last}=%{_last}%" to console
+			if {_last} is not set:
+				add fxLangConverter_assemble({_first}, {_middle}) to {_sequence::*}
+				delete {_first}, {_middle}, {_last}
+			else:
+				set {_stack::*} to {_first} and {_middle}, {_last}
+			delete {_first} and {_middle}, {_last}
+	
+	if {_stack::*} is set:
+		add fxLangConverter_assemble({_stack::1}, {_stack::2}, {_stack::3}) to {_sequence::*}
+		delete {_stack::*}
+
+	# send "&cresult: %join {_sequence::*}%" to console
+	return join {_sequence::*}
+
+
+
+#> 자모 조합
+#> @invisible
+function fxLangConverter_assemble(first:text="", middle:text="", last:text="") :: text:
+	return {_middle} if {_first} is ""
+	return {_first} if {_middle} is ""
+
+	set {_intFirst} to fxLangConverter_toCode(1, {_first})
+	set {_intMiddle} to fxLangConverter_toCode(2, {_middle})
+	set {_intLast} to fxLangConverter_toCode(3, {_last})
+
+	set {_result} to round({_intFirst}*588+{_intMiddle}*28+{_intLast}+44032)
+	# send "{_intFirst}=%{_intFirst}%, {_intMiddle}=%{_intMiddle}%, {_intLast}=%{_intLast}% / %{_result}%" to console
+	
+	return Character.toChars({_result})[0].toString()
+
+
+
+#> 한글 자모 -> 유니코드 성분
+#> @invisible
+function fxLangConverter_toCode(pos:integer, code:text) :: integer:
+	if {_pos} is 1:
+		set {_sequence::*} to "ㄱ" and "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"
+	else if {_pos} is 2:
+		set {_sequence::*} to "ㅏ" and "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ"
+	else if {_pos} is 3:
+		set {_sequence::*} to "" and "ㄱ", "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ", "ㄷ", "ㄹ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅁ", "ㅂ", "ㅄ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"
+	set {_i} to 0
+	loop {_sequence::*}:
+		if {_code} is loop-value:
+			return {_i}
+		else:
+			add 1 to {_i}
+
+
+
+#> 유니코드 -> 한글 자모
+#> @invisible
+function fxLangConverter_parseCode(code:integers) :: text:
+	if {_code::1} is {@ㄱ}:
+		return "ㄱ" if {_code::2} is not set
+		return "ㄲ" if {_code::2} is {@ㄱ}
+		return "ㅆ" if {_code::2} is {@ㅅ}
+	return "ㄲ" if {_code::*} is {@ㄲ}
+	if {_code::1} is {@ㄴ}:
+		return "ㄴ" if {_code::2} is not set
+		return "ㄵ" if {_code::2} is {@ㅈ}
+		return "ㄶ" if {_code::2} is {@ㅎ}
+	if {_code::1} is {@ㄷ}:
+		return "ㄷ" if {_code::2} is not set
+		return "ㄸ" if {_code::2} is {@ㄷ}
+	return "ㄸ" if {_code::*} is {@ㄸ}
+	if {_code::1} is {@ㄹ}:
+		return "ㄹ" if {_code::2} is not set
+		return "ㄺ" if {_code::2} is {@ㄱ}
+		return "ㄻ" if {_code::2} is {@ㅁ}
+		return "ㄼ" if {_code::2} is {@ㅂ}
+		return "ㄽ" if {_code::2} is {@ㅅ}
+		return "ㄾ" if {_code::2} is {@ㅌ}
+		return "ㄿ" if {_code::2} is {@ㅍ}
+		return "ㅀ" if {_code::2} is {@ㅎ}
+	return "ㅁ" if {_code::*} is {@ㅁ}
+	if {_code::1} is {@ㅂ}:
+		return "ㅂ" if {_code::2} is not set
+		return "ㅃ" if {_code::2} is {@ㅂ}
+		return "ㅄ" if {_code::2} is {@ㅅ}
+	return "ㅃ" if {_code::*} is {@ㅃ}
+	if {_code::1} is {@ㅅ}:
+		return "ㅅ" if {_code::2} is not set
+		return "ㅆ" if {_code::2} is {@ㅅ}
+	return "ㅆ" if {_code::*} is {@ㅆ}
+	return "ㅇ" if {_code::*} is {@ㅇ}
+	if {_code::1} is {@ㅈ}:
+		return "ㅈ" if {_code::2} is not set
+		return "ㅉ" if {_code::2} is {@ㅈ}
+	return "ㅉ" if {_code::*} is {@ㅉ}
+	return "ㅊ" if {_code::*} is {@ㅊ}
+	return "ㅋ" if {_code::*} is {@ㅋ}
+	return "ㅌ" if {_code::*} is {@ㅌ}
+	return "ㅍ" if {_code::*} is {@ㅍ}
+	return "ㅎ" if {_code::*} is {@ㅎ}
+	if {_code::1} is {@ㅏ}:
+		return "ㅏ" if {_code::2} is not set
+		return "ㅐ" if {_code::2} is {@ㅣ}
+	return "ㅐ" if {_code::*} is {@ㅐ}
+	if {_code::1} is {@ㅑ}:
+		return "ㅑ" if {_code::2} is not set
+		return "ㅒ" if {_code::2} is {@ㅣ}
+	return "ㅒ" if {_code::*} is {@ㅒ}
+	if {_code::1} is {@ㅓ}:
+		return "ㅓ" if {_code::2} is not set
+		return "ㅔ" if {_code::2} is {@ㅣ}
+	return "ㅔ" if {_code::*} is {@ㅔ}
+	if {_code::1} is {@ㅕ}:
+		return "ㅕ" if {_code::2} is not set
+		return "ㅖ" if {_code::2} is {@ㅣ}
+	return "ㅖ" if {_code::*} is {@ㅖ}
+	if {_code::1} is {@ㅗ}:
+		return "ㅗ" if {_code::2} is not set
+		if {_code::2} is {@ㅏ}:
+			return "ㅘ" if {_code::3} is not set
+			return "ㅙ" if {_code::3} is {@ㅣ}
+		return "ㅙ" if {_code::2} is {@ㅐ}
+		return "ㅚ" if {_code::2} is {@ㅣ}
+	return "ㅛ" if {_code::*} is {@ㅛ}
+	if {_code::1} is {@ㅜ}:
+		return "ㅜ" if {_code::2} is not set
+		if {_code::2} is {@ㅓ}:
+			return "ㅝ" if {_code::3} is not set
+			return "ㅞ" if {_code::3} is {@ㅣ}
+		return "ㅞ" if {_code::2} is {@ㅔ}
+		return "ㅟ" if {_code::2} is {@ㅣ}
+	return "ㅠ" if {_code::*} is {@ㅠ}
+	if {_code::*} is {@ㅡ}:
+		return "ㅡ" if {_code::2} is not set
+		return "ㅢ" if {_code::2} is {@ㅣ}
+	return "ㅣ" if {_code::*} is {@ㅣ}
+
+
+
+#> 자모 성분 합치기
+#> @invisible
+function fxLangConverter_combine(char:texts) :: text:
+	if {_char::1} is "ㄱ":
+		return "ㄲ" if {_char::2} is "ㄱ"
+		return "ㄳ" if {_char::2} is "ㅅ"
+	else if {_char::1} is "ㄴ":
+		return "ㄵ" if {_char::2} is "ㅈ"
+		return "ㄶ" if {_char::2} is "ㅎ"
+	else if {_char::1} is "ㄹ":
+		return "ㄺ" if {_char::2} is "ㄱ"
+		return "ㄻ" if {_char::2} is "ㅁ"
+		return "ㄼ" if {_char::2} is "ㅂ"
+		return "ㄽ" if {_char::2} is "ㅅ"
+		return "ㄾ" if {_char::2} is "ㅌ"
+		return "ㄿ" if {_char::2} is "ㅍ"
+		return "ㅀ" if {_char::2} is "ㅎ"
+	else if {_char::1} is "ㅂ":
+		return "ㅃ" if {_char::2} is "ㅂ"
+	else if {_char::1} is "ㅅ":
+		return "ㅆ" if {_char::2} is "ㅅ"
+	else if {_char::1} is "ㅈ":
+		return "ㅉ" if {_char::2} is "ㅈ"
+	else if {_char::1} is "ㅏ":
+		return "ㅐ" if {_char::2} is "ㅣ"
+	else if {_char::1} is "ㅑ":
+		return "ㅒ" if {_char::2} is "ㅣ"
+	else if {_char::1} is "ㅓ":
+		return "ㅔ" if {_char::2} is "ㅣ"
+	else if {_char::1} is "ㅕ":
+		return "ㅖ" if {_char::2} is "ㅣ"
+	else if {_char::1} is "ㅗ":
+		if {_char::2} is "ㅏ":
+			return "ㅘ" if {_char::3} is not set
+			return "ㅙ" if {_char::3} is "ㅣ"
+		return "ㅙ" if {_char::2} is "ㅐ"
+		return "ㅚ" if {_char::2} is "ㅣ"
+	else if {_char::1} is "ㅜ":
+		if {_char::2} is "ㅓ":
+			return "ㅝ" if {_char::3} is not set
+			return "ㅞ" if {_char::3} is "ㅣ"
+		return "ㅞ" if {_char::2} is "ㅔ"
+		return "ㅟ" if {_char::2} is "ㅣ"
+	else if {_char::1} is "ㅡ":
+		return "ㅢ" if {_char::2} is "ㅣ"
+
+
+#> 종성 성분 분해하기
+#> @invisible
+function fxLangConverter_splite(char:text) :: texts:
+	return "ㄱ" and "ㅅ" if {_char} is "ㄳ"
+	return "ㄴ" and "ㅈ" if {_char} is "ㄵ"
+	return "ㄴ" and "ㅎ" if {_char} is "ㄶ"
+	return "ㄹ" and "ㄱ" if {_char} is "ㄺ"
+	return "ㄹ" and "ㅁ" if {_char} is "ㄻ"
+	return "ㄹ" and "ㅂ" if {_char} is "ㄼ"
+	return "ㄹ" and "ㅅ" if {_char} is "ㄽ"
+	return "ㄹ" and "ㅌ" if {_char} is "ㄾ"
+	return "ㄹ" and "ㅍ" if {_char} is "ㄿ"
+	return "ㄹ" and "ㅎ" if {_char} is "ㅀ"
+	return "ㅂ" and "ㅅ" if {_char} is "ㅄ"

@@ -1,0 +1,170 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone/222487265751
+
+# 210101 생성
+# 210801
+#  - EffListCopy 병합
+#  - 파일명 EffList.sk로 변경
+# 210829
+#  - 블로그 업로드
+# 220716
+#  - 파일명 List.sk로 변경
+#  - 이전 ExprJSONfromList() -> List_toJson()
+#  - 함수 이름 변경
+
+# ================================================== Options
+
+on load:
+	# suppress conflict warning (Skript2.6.1부터 제거됨)
+	suppress starting expression warning
+	# suppress conjunction warning
+	suppress variable save warning
+
+# ================================================== Effect
+
+#> 리스트 변수가 가지고 있는 모든 하위 변수를 출력합니다.
+#> @param list_name 출력할 리스트 이름
+function List_print(list_name:text):
+	if indexes of {%{_list_name}%::*} is set:
+		send "&a{%{_list_name}%::*}&r is ..." to console
+		fxList_print( {_list_name} )
+	else:
+		send "&a{%{_list_name}%::*}&r is not set" to console
+
+#> 리스트의 하위 항목까지 모두 복사 합니다.
+#> @param from 복사할 리스트
+#> @param to 복사될 리스트
+#> @param overwrite 덮어쓰기 여부
+function List_copy(from:text, to:text, overwrite:boolean=true):
+	clear {%{_to}%::*} if {_overwrite} is true
+	fxList_copy( {_from}, {_to} )
+
+#> 리스트 변수를 Json 텍스트로 반환합니다.
+#> ***
+#> ```vskript
+#> set {test::1} to "A"
+#> set {test::2} to "A"
+#> set {test::3} to "A"
+#> set {_json} to JSON_fromList( "test", true )
+#> ```
+function List_toJson(list_name:text, doClear:boolean=false) :: text:
+	set {_json} to fxList_toJson( {_list_name} )
+	delete {%{_list_name}%::*} if {_doClear} is true
+	return {_json}
+
+
+
+# ==================================================
+
+
+
+#> @invisible
+function fxList_print(l:text):
+	loop indexes of {%{_l}%::*}:
+		if {%{_l}%::%loop-text%} is set:
+			send "    {%{_l}%::%loop-text%} = %{%{_l}%::%loop-text%}%" to console
+		if indexes of {%{_l}%::%loop-text%::*} is set:
+			fxList_print( "%{_l}%::%loop-text%" )
+	
+#> @invisible
+function fxList_copy(f:text, t:text):
+	if {_f} is {_t}:
+		Error( script name, "fxList_copy()", "{_f} equals {_t}.", console )
+	loop indexes of {%{_f}%::*}:
+		if {%{_f}%::%loop-value%} is set:
+			set {%{_t}%::%loop-value%} to {%{_f}%::%loop-value%}
+		if  indexes of {%{_f}%::%loop-value%::*} is set:
+			fxList_copy( "%{_f}%::%loop-value%", "%{_t}%::%loop-value%" )
+
+#> @invisible
+function fxList_toJson(list_name:text, header:texts="", isArrayComponent:boolean=false) :: text:
+	set {_isArray} to CondIsArray( {_list_name} )
+	if {_isArray} is true:
+		set {_bracket::*} to "[" and "]"
+	else:
+		set {_bracket::*} to "{" and "}"
+	loop indexes of {%{_list_name}%::*}:
+		set {_key::*} to fxList_toJsonKey( loop-value )
+		set {_key::2} to {_header::2} if {_header::2} is set
+		if {%{_list_name}%::%loop-text%} is set:
+			set {_value} to fxList_toJsonValue( {%{_list_name}%::%loop-value%}, {_key::2} )
+			set {_value} to "%{_key::1}%:%{_value}%" if {_isArray} is not true
+			add {_value} to {_tag::*}
+		if indexes of {%{_list_name}%::%loop-value%::*} is set:
+			set {_value} to fxList_toJson( "%{_list_name}%::%loop-value%", {_key::*}, {_isArray} )
+			add {_value} to {_tag::*}
+	set {_tag} to ( join {_tag::*} with "," )
+	set {_tag} to join {_bracket::1}, {_tag}, {_bracket::2}
+	if {_header::1} is not "":
+		{_isArrayComponent} is not true
+		set {_tag} to join {_header::1}, ":", {_tag}
+	return {_tag}
+	
+#> @invisible
+function fxList_toJsonKey(key:text) :: texts:
+	if {_key} contain ".":
+		set {_data::*} to Text_splitInHalf({_key} , ".", true)
+	else:
+		set {_data::1} to {_key}
+	set {_data::1} to {_data::1} in strict pascal case
+	replace "_" with "" in {_data::1}
+	set {_data::1} to """%{_data::1}%"""
+	return {_data::*}
+	
+#> @invisible
+function fxList_toJsonValue(value:object, unit:text="<none>") :: text:
+	if {_unit} is set:
+		set {_value} to "%{_value}%%{_unit}%"
+	else:
+		if {_value} is text:
+			replace "\" with "\\" in {_value} # 210105
+			replace """" with "\""" in {_value}
+			replace "\\n" with "\n" in {_value} # 210111
+			set {_value} to """%{_value}%"""
+		else if {_value} is boolean or integer:
+			set {_value} to "%{_value}%"
+		else if {_value} is number:
+			set {_value} to "%{_value}%"
+			set {_value} to "%{_value}%.0" if {_value} don't contain "."
+		else if {_value} is player:
+			set {_value} to fxJSON_fromEntity( {_value} )
+		else:
+			set {_value} to "%{_value}%"
+	return {_value}
+
+#> 엔티티를 Json 텍스트로 반환합니다.
+#> ***
+#> ```vskript
+#> set {_json} to JSON_fromEntity( player )
+#> ```
+#> @invisible
+function fxJSON_fromEntity(e:entity) :: text:
+	set {-entity::_name} to "%{_e}%"
+	set {-entity::_type} to "%type of {_e}%"
+	set {-entity::_id} to uuid of {_e}
+	set {_json} to List_toJson( "-entity", true )
+	return {_json}
+
+
+# ==================================================
+
+
+
+#> 리스트가 배열인지 확인합니다.
+#> 배열은 인덱스가 0과 같거나 큰 정수로만 이루어진 리스트입니다.
+#> @param list_name 리스트 이름
+#> @return 정수 인덱스만 있는 경우 true
+#> @invisible
+function CondIsArray(list_name:text) :: boolean:
+	return true if indexes of {%{_list_name}%::*} where [ fxCondIsArray_isNormal( input ) is false ] is not set
+	return false
+
+#> 0과 같거나 큰 정수인지 확인합니다.
+#> @param v 값
+#> @return 0과 같거나 큰 정수이면 true, 아니면 false
+#> @invisible
+function fxCondIsArray_isNormal(v:object) :: boolean:
+	set {_int} to {_v} parsed as integer
+	return true if {_int} >= 0
+	return false

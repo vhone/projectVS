@@ -1,0 +1,96 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+
+# 210116 생성
+# 210117
+#  - 아이템 지급(인벤토리 픽업) 알고리즘
+# 210222
+#  - 지급 순서에 따른 분류
+
+# ============================== 
+
+command /eff.giveanddrop:
+	permission: eff.giveanddrop
+	trigger:
+		set {_items::*} to 640 stone
+		EffGiveAndDrop( player, {_items::*} )
+
+# ============================== 
+
+#> 슬롯 0 ~ 35 순서로 아이템을 지급합니다.
+#> @param p 플레이어
+#> @param items 지급할 아이템
+function EffGiveAndDrop(p:players, items:items):
+	set {_sequence::*} to integers from 0 to 35
+	loop {_p::*}:
+		fxGiveAndDrop( loop-value, {_items::*}, {_sequence::*} )
+
+#> 인벤토리에서 픽업 시 얻게되는 순서로
+#> 슬롯 8 ~ 0 순서로 지급한 후,
+#> 슬롯 35 ~ 9 순서로 지급합니다.
+#> @param p 플레이어
+#> @param items 지급할 아이템
+function EffGiveAndDropAsInventory(p:players, items:items):
+	set {_sequence::*} to integers from 8 to 0 and integers from 35 to 9
+	loop {_p::*}:
+		fxGiveAndDrop( loop-value, {_items::*}, {_sequence::*} )
+	
+#> 메인 손에 지급한 후 나머지 슬롯을 순서대로 지급합니다.
+#> @param p 플레이어
+#> @param items 지급할 아이템
+function EffGiveAndDropAsHand(p:players, items:items):
+	loop {_p::*}:
+		set {_sequence::*} to integers from 0 to 35
+		set {_index} to round( index of hotbar slot of loop-value )
+		remove {_index} from {_sequence::*}
+		set {_sequence::*} to {_index} and {_sequence::*}
+		fxGiveAndDrop( loop-value, {_items::*}, {_sequence::*} )
+
+# ============================== inner
+
+#> @invisible
+function fxGiveAndDrop(p:player, items:items, sequence:integers):
+	set {_inv} to inventory of {_p}
+	loop {_items::*}:
+		set {_item} to 1 of loop-value
+		set {_amount} to item amount of loop-value
+		set {_stack} to max stack of {_item}
+		set {_stack_size} to round up ( {_amount} / {_stack} )
+		clear {_slots::*}
+		loop {_sequence::*}:
+			set {_slot} to loop-value-2
+			set {_inv_item} to 1 of slot {_slot} of {_inv}
+			if {_inv_item} is air:
+				add {_slot} to {_slots::*}
+			else if {_inv_item} is {_item}:
+				set {_inv_amount} to item amount of slot {_slot} of {_inv}
+				continue if {_inv_amount} is {_stack}
+				remove 1 from {_stack_size}
+				set {_total_amount} to {_inv_amount} + {_amount}
+				if {_total_amount} > {_stack}:
+					set slot {_slot} of {_inv} to {_stack} of {_item}
+					set {_amount} to {_total_amount} - {_stack}
+				else:
+					set slot {_slot} of {_inv} to {_total_amount} of {_item}
+					set {_amount} to 0
+					stop loop
+		continue if {_amount} is 0
+		loop {_slots::*}:
+			set {_slot} to loop-value-2
+			remove 1 from {_stack_size}
+			if {_amount} > {_stack}:
+				set slot {_slot} of {_inv} to {_stack} of {_item}
+				set {_amount} to {_amount} - {_stack}
+			else:
+				set slot {_slot} of {_inv} to {_amount} of {_item}
+				set {_amount} to 0
+				stop loop
+		continue if {_amount} is 0
+		set {_loc} to location 0.25 in front of head location of {_p}
+		loop ceil( {_amount} / {_stack} ) times:
+			if {_amount} > {_stack}:
+				drop {_stack} of {_item} at {_loc} without velocity
+				remove {_stack} from {_amount}
+			else:
+				drop {_amount} of {_item} at {_loc} without velocity

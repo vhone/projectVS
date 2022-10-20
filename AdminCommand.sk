@@ -1,0 +1,148 @@
+# command /execute.command <text>:
+# 	permission: execute.command
+# 	trigger:
+# 		EffCommandWithoutLog( arg-text )
+
+options:
+	ID: VhoneSkript
+	SHORT: vskript, vsk
+
+command /{@ID} <text> <text> [<integer>]:
+	aliases: {@SHORT}
+	usage: /&6{@ID}&r (&breload&r|&benable&r|&bdisable&r) <&bfile name&r> [<&binteger&r>]
+	permission: {@ID}
+	trigger:
+		set {_command} to arg-text-1
+		set {_fileName} to arg-text-2
+		set {_index} to arg-integer
+		if {_command} is not "reload" or "enable", "disable":
+			send "Usage: /&6{@ID}&r ..." to console
+			send "Aliases: {@SHORT}" to console
+			send "  &breload&r - Reloads the  script" to console
+			send "  &benable&r - Enables script" to console
+			send "  &bdisable&r - Disables script" to console
+			stop
+		loop all scripts:
+			set {_script} to loop-text
+			last element of Text_splitInHalf({_script}, "\", false) contain {_fileName}
+			if {_index} > 0:
+				add 1 to {_i}
+				{_index} is {_i}
+				set {_fileList::*} to {_script}
+				stop all loops
+			else:
+				add {_script} to {_fileList::*}
+		if {_fileList::*} is not set:
+			send "[&6{@ID}&r] File not found with name ""%{_fileName}%""." to console
+		else if number of {_fileList::*} > 1:
+			set {_amount} to number of {_fileList::*}
+			send "[&6{@ID}&r] %{_amount}% files found. Please select one." to console
+			loop {_fileList::*}:
+				send "	[&a%loop-index%&r] &b%loop-value%" to console
+			stop
+		else:
+			set {_script} to {_fileList::1}
+			if {_command} is "reload":
+				set {_cmdWord} to "Reload"
+			else if {_command} is "enable":
+				set {_cmdWord} to "Load"
+			else if {_command} is "disable":
+				set {_cmdWord} to "Unload"
+			send "[&6{@ID}&r] %{_cmdWord}%ing &6%{_script}%&r..." to console 
+			set {_time} to now
+			if {_command} is "reload":
+				reload script {_script}
+			else if {_command} is "enable":
+				enable script {_script}
+			else if {_command} is "disable":
+				disable script {_script}
+			set {_time} to difference between now and {_time}
+			send "[&6{@ID}&r] &a%{_cmdWord}%ed &6%{_script}%&r... (&6%{_time}%&r)" to console
+
+on load:
+	suppress starting expression warning
+
+command /variable.print <text>:
+	permission: variable.print
+	trigger:
+		List_print( arg-text )
+
+command /variable.delete <text>:
+	permission: variable.delete
+	trigger:
+		delete {%arg-text%}
+		send "{%arg-text%}=%{%arg-text%}%" to console
+
+command /locale <player=%player%>:
+	permission: locale
+	trigger:
+		send "&blocale of %arg-player%&r = &e%locale of arg-player%"
+		
+command /uuid <player=%player%>:
+	permission: uuid
+	trigger:
+		set {_uuid} to uuid of arg-player
+		send "&bUUID of %arg-player%&r = &e%{_uuid}%"
+		set {_array::*} to Integers_fromUUID( {_uuid} )
+		send "&bIntArrayUUID of %arg-player%&r = &e[%{_array::1}%, %{_array::2}%, %{_array::3}%, %{_array::4}%]"
+
+command /target:
+	permission: target
+	trigger:
+		send "%targeted block%"
+
+command /heal <player=%player%>:
+	permission: heal
+	trigger:
+		heal arg-player
+		set hunger of player to 10
+		# set exhaustion of player to 60
+		# send "%exhaustion of player%"
+		# send "%hunger of player%"
+
+command /speed.fly [<player=%player%>] [<number=0.1>]:
+	permission: speed.fly
+	trigger:
+		set fly speed of arg-player to arg-number
+		send "> fly speed of %arg-player% = %fly speed of arg-player%"
+
+command /peek <player>:
+	permission: peek
+	trigger:
+		open inventory of arg-player to player
+
+command /maxHealth [<player=%player%>] [<integer=10>]:
+	permission: maxHealth
+	trigger:
+		set max health of arg-player to arg-integer
+		send "> max health of %arg-player% = %max health of arg-player%"
+	
+# ============================== Item
+
+command /item <item> <integer=1>:
+	aliases: i
+	permission: item
+	trigger:
+		give arg-integer of arg-item to player
+		
+command /item.SkriptName:
+	permission: item.skriptName
+	trigger:
+		send "%tool%"
+		
+command /item.Durability <integer=0>:
+	permission: item.durability
+	trigger:
+		set durability of tool to arg-integer
+		
+command /item.CustomModelData <integer=0>:
+	permission: item.CustomModelData
+	trigger:
+		send custom model data of tool to player
+command /item.CustomModelData.set <integer=0>:
+	permission: item.CustomModelData
+	trigger:
+		if arg-integer is 0:
+			reset custom model data of tool
+		else:
+			set custom model data of tool to arg-integer

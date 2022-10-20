@@ -1,0 +1,37 @@
+import:
+	org.bukkit.inventory.ItemStack
+
+
+
+options:
+	ID: ItemStack
+
+
+
+#> @param title 책 제목
+#> @param author 글쓴이
+#> @param pages 내용
+#> @return 쓰여진 책
+function ItemStack_WrittenBook(title:object, author:object, pages:objects) :: item:
+	if {_title} is text:
+		set {_title} to Component_text({_title})
+	else if Component_instanceOf({_title}) is true:
+		set {_title} to Component_text("%{_title}%")
+	if {_author} is text:
+		set {_author} to Component_text({_author})
+	else if Component_instanceOf({_author}) is true:
+		set {_author} to Component_text("%{_author}%")
+	loop {_pages::*}:
+		set {_page} to loop-value
+		if {_page} is text:
+			set {_page} to Component_text({_page})
+		else if Component_instanceOf({_page}) is true:
+			set {_page} to Component_text("%{_page}%")
+		set {_pages::%loop-index%} to {_page}
+	set {_book} to new ItemStack(written book)
+	set {_meta} to {_book}.getItemMeta()
+	{_meta}.title({_title})
+	{_meta}.author({_author})
+	{_meta}.addPages({_pages::*})
+	{_book}.setItemMeta({_meta})
+	return {_book}

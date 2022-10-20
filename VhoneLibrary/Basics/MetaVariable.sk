@@ -1,0 +1,340 @@
+options:
+	ID: MetaVariable
+
+	METADATA.SIZE: metadata "MetaVariable.%{_key}%.size"
+	METADATA.INDEX: metadata "MetaVariable.%{_key}%.index"
+	METADATA.VALUE: metadata "MetaVariable.%{_key}%.%{_index}%"
+
+#> @param holder 메타데이터 홀더
+#> @param key 메타데이터 키
+#> @return 메타변수 크기
+function MetaVariable_size(holder:object, key:text) :: integer:
+	if {_holder} is not entity or block:
+		send "[&c{@ID}&r] %{_holder}% is not Metadata Holder." to console
+		return -1 
+	set {_size} to {@METADATA.SIZE} of {_holder}
+	return 0 if {_size} is not set
+	return 0 if {_size} is not integer
+	return 0 if {_size} <= 0
+	return {_size}
+
+#> @param holder 메타데이터 홀더
+#> @param key 메타데이터 키
+function MetaVariable_print(holder:object, key:text):
+	set {_size} to MetaVariable_size({_holder}, {_key})
+	if {_size} <= 0:
+		send "&a{@ID}.%{_key}% is not set." to console
+	else:
+		send "&a{@ID}.%{_key}% is..." to console
+		loop integers from 0 to {_size}-1:
+			set {_index} to loop-integer
+			set {_value} to {@METADATA.VALUE} of {_holder}
+			send "&a	[%{_index}%] %{_value}%" to console
+
+#> @param holder 메타데이터 홀더
+#> @param key 메타데이터 키
+#> @return 있으면 true, 아니면 false
+function MetaVariable_isExist(holder:object, key:text) :: boolean:
+	return false if MetaVariable_size({_holder}, {_key}) <= 0
+	return true
+
+#> 메타변수의 인덱스는 0부터 시작
+#> 중복 허용이 false인 경우 중복 저장되지 않음
+#> @param holder 메타데이터 홀더
+#> @param key 메타데이터 키
+#> @param value 저장할 값
+#> @param duplicate 중복 허용
+#> @return 저장할 값
+function MetaVariable_add(holder:object, key:text, value:object, duplicate:boolean=true) :: object:
+	set {_size} to MetaVariable_size({_holder}, {_key})
+	{_size} >= 0
+	if {_size} > 0:
+		{_duplicate} is false
+		loop integers from 0 to {_size}-1:
+			set {_index} to loop-integer
+			set {_a} to {@METADATA.VALUE} of {_holder}
+			{@METADATA.VALUE} of {_holder} is {_value}
+			stop
+	set {_index} to {_size}
+	set {@METADATA.VALUE} of {_holder} to {_value}
+	set {@METADATA.SIZE} of {_holder} to round({_index}+1)
+	return {_value}
+
+#> 저장된 값을 변경
+#> 연속하지 않은 인덱스를 시도할 경우 변경되지 않음
+#> @param holder 메타데이터 홀더
+#> @param key 메타데이터 키
+#> @param index 인덱스
+#> @param value 저장할 값
+#> @return 저장할 값
+function MetaVariable_set(holder:object, key:text, index:integer, value:object) :: object:
+	{_index} >= 0
+	set {_size} to MetaVariable_size({_holder}, {_key})
+	{_size} > {_index}
+	set {_set} to {@METADATA.VALUE} of {_holder}
+	set {@METADATA.VALUE} of {_holder} to {_value}
+	return {_set}
+
+#> @param holder 메타데이터 홀더
+#> @param key 메타데이터 키
+#> @param index 인덱스
+#> @return 인덱스에 저장된 값
+function MetaVariable_get(holder:object, key:text, index:integer=0) :: object:
+	{_index} >= 0
+	set {_size} to MetaVariable_size({_holder}, {_key})
+	{_size} > {_index}
+	set {@METADATA.INDEX} of {_holder} to {_index}
+	return {@METADATA.VALUE} of {_holder}
+
+#> @param holder 메타데이터 홀더
+#> @param key 메타데이터 키
+#> @return 저장된 모든 값
+function MetaVariable_getAll(holder:object, key:text) :: objects:
+	set {_size} to MetaVariable_size({_holder}, {_key})
+	{_size} > 0
+	loop integers from 0 to {_size}-1:
+		set {_index} to loop-integer
+		set {_value::%loop-integer%} to {@METADATA.VALUE} of {_holder}
+	return {_value::*}
+
+#> 순환 허용이 true인 경우 마지막 다음 값으로 처음 값을 반환함
+#> 순환 허용이 false인 경우 마지막 다음 값은 없음
+#> @param holder 메타데이터 홀더
+#> @param key 메타데이터 키
+#> @param circulate 순환 허용
+#> @return 다음 값
+function MetaVariable_next(holder:object, key:text, circulate:boolean=false) :: object:
+	set {_size} to MetaVariable_size({_holder}, {_key})
+	{_size} > 0
+	set {_index} to {@METADATA.INDEX} of {_holder}
+	if {_size} = {_index}+1:
+		stop if {_circluate} is false
+		set {_index} to 0
+	else:
+		set {_index} to {_index}+1
+	set {@METADATA.INDEX} of {_holder} to {_index}
+	return {@METADATA.VALUE} of {_holder}
+
+#> 메타변수의 중간에 값을 삽입함
+#> 중복 허용이 false인 경우 중복 삽입되지 않음
+#> 연속하지 않은 인덱스를 시도할 경우 삽입되지 않음
+#> @param holder 메타데이터 홀더
+#> @param key 메타데이터 키
+#> @param index 인덱스
+#> @param value 값
+#> @param duplicate 중복 허용
+#> @return 
+function MetaVariable_insert(holder:object, key:text, index:integer, value:object, duplicate:boolean=true) :: object:
+	{_index} > 0
+	set {_size} to MetaVariable_size({_holder}, {_key})
+	{_size} >= 0
+	set {_i} to {_index}
+	if {_size} > {_i}:
+		loop integers from 0 to {_size}-1:
+			set {_index} to loop-integer
+			set {_v} to {@METADATA.VALUE} of {_holder}
+			if {_v} is {_value}:
+				{_duplicate} is false
+				stop
+			if {_index} >= {_i}:
+				set {_list::%{_index}+1%} to {_v}
+		loop {_list::*}:
+			set {_index} to loop-index
+			set {@METADATA.VALUE} of {_holder} to loop-value
+		set {_index} to {_i}
+		set {@METADATA.VALUE} of {_holder} to {_value}
+		set {@METADATA.SIZE} of {_holder} to round({_size}+1)
+		return {_value}
+	else if {_size} = {_i}:
+		return MetaVariable_add({_holder}, {_key}, {_value}, {_duplicate})
+
+#> @param holder 메타데이터 홀더
+#> @param key 메타데이터 키
+#> @param index 인덱스
+#> @return 제거된 값
+function MetaVariable_delete(holder:object, key:text, index:integer) :: object:
+	{_index} > 0
+	set {_size} to MetaVariable_size({_holder}, {_key})
+	{_size} > 0
+	if {_size} > {_index}+1:
+		set {_delete} to {@METADATA.VALUE} of {_holder}
+		set {_i} to {_index}
+		loop integers from {_i}+1 to {_size} - 1:
+			set {_index} to loop-integer
+			set {_list::%{_index}-1%} to {@METADATA.VALUE} of {_holder}
+		delete {@METADATA.VALUE} of {_holder}
+		loop {_list::*}:
+			set {_index} to loop-index
+			set {@METADATA.VALUE} of {_holder} to loop-value
+		set {@METADATA.SIZE} of {_holder} to round({_size}-1)
+		return {_delete}
+	else if {_size} = {_index}+1:
+		return MetaVariable_pop({_holder}, {_key})
+
+#> 마지막 값을 반환하고 변수에서 제거
+#> @param holder 메타데이터 홀더
+#> @param key 메타데이터 키
+#> @return 마지막 값
+function MetaVariable_pop(holder:object, key:text) :: object:
+	set {_size} to MetaVariable_size({_holder}, {_key})
+	{_size} > 0
+	set {_index} to round({_size}-1)
+	set {_value} to {@METADATA.VALUE} of {_holder}
+	delete {@METADATA.VALUE} of {_holder}
+	set {@METADATA.SIZE} of {_holder} to {_index}
+	return {_value}
+
+#> @param holder 메타데이터 홀더
+#> @param key 메타데이터 키
+#> @return 마지막 값
+function MetaVariable_peek(holder:object, key:text) :: object:
+	set {_size} to MetaVariable_size({_holder}, {_key})
+	{_size} > 0
+	set {_index} to {_size}-1
+	set {_value} to {@METADATA.VALUE} of {_holder}
+	return {_value}
+
+#> @param holder 메타데이터 홀더
+#> @param key 메타데이터 키
+#> @param value 찾을 값
+#> @return 값이 있으면 true, 없으면 false
+function MetaVariable_contain(holder:object, key:text, value:object) :: boolean:
+	set {_size} to MetaVariable_size({_holder}, {_key})
+	{_size} > 0
+	loop integers from 0 to {_size}-1:
+		set {_index} to loop-integer
+		{@METADATA.VALUE} of {_holder} is {_value}
+		return true
+	return false
+
+#> @param holder 메타데이터 홀더
+#> @param key 메타데이터 키
+#> @return 모든 값
+function MetaVariable_clear(holder:object, key:text) :: objects:
+	set {_size} to MetaVariable_size({_holder}, {_key})
+	{_size} > 0
+	loop integers from 0 to {_size}-1:
+		set {_index} to loop-integer
+		add {@METADATA.VALUE} of {_holder} to {_value::*}
+		delete {@METADATA.VALUE} of {_holder}
+	delete {@METADATA.SIZE} of {_holder}
+	delete {@METADATA.INDEX} of {_holder}
+	return {_value::*}
+
+# ==================================================
+
+# command /{@ID}.print:
+# 	permission: {@ID}.print
+# 	trigger:
+# 		set {_holder} to player
+# 		set {_key} to "print"
+# 		MetaVariable_add({_holder}, {_key}, "A")
+# 		MetaVariable_add({_holder}, {_key}, "B")
+# 		MetaVariable_add({_holder}, {_key}, "C")
+# 		MetaVariable_add({_holder}, {_key}, "D")
+# 		MetaVariable_print({_holder}, {_key})
+# 		MetaVariable_clear({_holder}, {_key})
+
+# command /{@ID}.peek:
+# 	permission: {@ID}.peek
+# 	trigger:
+# 		set {_holder} to player
+# 		set {_key} to "peek"
+# 		MetaVariable_add({_holder}, {_key}, "A")
+# 		MetaVariable_add({_holder}, {_key}, "B")
+# 		MetaVariable_add({_holder}, {_key}, "C")
+# 		MetaVariable_add({_holder}, {_key}, "D")
+# 		set {_peek} to MetaVariable_peek({_holder}, {_key})
+# 		MetaVariable_print({_holder}, {_key})
+# 		MetaVariable_clear({_holder}, {_key})
+# 		send "{_peek}=%{_peek}%" to console
+
+# command /{@ID}.set:
+# 	permission: {@ID}.set
+# 	trigger:
+# 		set {_holder} to player
+# 		set {_key} to "set"
+# 		MetaVariable_add({_holder}, {_key}, "A")
+# 		MetaVariable_add({_holder}, {_key}, "B")
+# 		MetaVariable_add({_holder}, {_key}, "C")
+# 		MetaVariable_add({_holder}, {_key}, "D")
+# 		set {_set} to MetaVariable_set({_holder}, {_key}, 2, "E")
+# 		MetaVariable_print({_holder}, {_key})
+# 		MetaVariable_clear({_holder}, {_key})
+# 		send "{_set}=%{_set}%" to console
+
+# command /{@ID}.pop:
+# 	permission: {@ID}.pop
+# 	trigger:
+# 		set {_holder} to player
+# 		set {_key} to "pop"
+# 		MetaVariable_add({_holder}, {_key}, "A")
+# 		MetaVariable_add({_holder}, {_key}, "B")
+# 		MetaVariable_add({_holder}, {_key}, "C")
+# 		MetaVariable_add({_holder}, {_key}, "D")
+# 		set {_pop} to MetaVariable_pop({_holder}, {_key})
+# 		MetaVariable_print({_holder}, {_key})
+# 		MetaVariable_clear({_holder}, {_key})
+# 		send "{_pop}=%{_pop}%" to console
+
+# command /{@ID}.insert:
+# 	permission: {@ID}.insert
+# 	trigger:
+# 		set {_holder} to player
+# 		set {_key} to "insert"
+# 		MetaVariable_add({_holder}, {_key}, "A")
+# 		MetaVariable_add({_holder}, {_key}, "B")
+# 		MetaVariable_add({_holder}, {_key}, "C")
+# 		MetaVariable_add({_holder}, {_key}, "D")
+# 		set {_insert} to MetaVariable_insert({_holder}, {_key}, 2, "E")
+# 		MetaVariable_print({_holder}, {_key})
+# 		MetaVariable_clear({_holder}, {_key})
+# 		send "{_insert}=%{_insert}%" to console
+
+# command /{@ID}.get_next:
+# 	permission: {@ID}.get_next
+# 	trigger:
+# 		set {_holder} to player
+# 		set {_key} to "get_next"
+# 		MetaVariable_add({_holder}, {_key}, "A")
+# 		MetaVariable_add({_holder}, {_key}, "B")
+# 		MetaVariable_add({_holder}, {_key}, "C")
+# 		MetaVariable_add({_holder}, {_key}, "D")
+# 		set {_get} to MetaVariable_get({_holder}, {_key}, 2)
+# 		MetaVariable_print({_holder}, {_key})
+# 		send "{_get}=%{_get}%" to console
+# 		loop 5 times:
+# 			set {_next} to MetaVariable_next({_holder}, {_key}, true)
+# 			send "{_next}=%{_next}%" to console
+# 		MetaVariable_clear({_holder}, {_key})
+
+# command /{@ID}.delete:
+# 	permission: {@ID}.delete
+# 	trigger:
+# 		set {_holder} to player
+# 		set {_key} to "delete"
+# 		MetaVariable_add({_holder}, {_key}, "A")
+# 		MetaVariable_add({_holder}, {_key}, "B")
+# 		MetaVariable_add({_holder}, {_key}, "C")
+# 		MetaVariable_add({_holder}, {_key}, "D")
+# 		set {_delete} to MetaVariable_delete({_holder}, {_key}, 2)
+# 		MetaVariable_print({_holder}, {_key})
+# 		MetaVariable_clear({_holder}, {_key})
+# 		send "{_delete}=%{_delete}%" to console
+
+
+
+function MetaChunk(chunk:chunk, key:text, value:object="<null>") :: object:
+	set {_chunkData::*} to Parser({_chunk})
+	return MetaChunkData({_chunkData::*}, {_key}, {_value})
+
+function MetaChunkData(chunkData:objects, key:text, value:object="<null>") :: object:
+	set {_core} to block at location({_chunkData::1}*16, 0, {_chunkData::2}*16, {_chunkData::3})
+	stop if {_core} is not set
+	if {_value} is not set:
+		delete metadata {_key} of {_core}
+	else if {_value} is "<null>":
+		return metadata {_key} of {_core}
+	else:
+		set metadata {_key} of {_core} to {_value}
+		return {_value}

@@ -1,0 +1,187 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+
+# 211104
+#  - 생성 Calculter.sk
+# 220412
+#  - 수식 분석 로그 추가
+
+# =============================================
+
+command /expr.calculate <text>:
+	aliases: calculate, cal
+	trigger:
+		set {_formula} to arg-text
+		replace " " with "" in {_formula}
+		set {_formula::*} to {_formula} split at "" where [ input is not "" ]
+		set {_data::*} to Calculater( arg-text )
+		set {_result} to {_data::1}
+
+		loop {_data::2} split at nl:
+			set {_pos} to uncolored Text_inBracket( loop-text, "[", "]" ) parsed as integer
+			set {_end} to {_pos} + length of Text_inBracket( loop-text, """" )
+			set {_formula::%{_pos}%b} to last color of loop-text
+			set {_formula::%{_end}%a} to "&7"
+			add loop-text to {_log::*}
+
+		add "&7%join {_formula::*}% &f= &a%{_result}%" to {_msg::*}
+		loop {_log::*}:
+			add "&r - %loop-value%" to {_msg::*}
+		Component_send(sender, Component_systemMessage(script, {_msg::*}))
+		
+# command /expr.calculate <text>:
+# 	aliases: calculate, cal
+# 	trigger:
+# 		send Calculater( arg-text )
+
+# =============================================
+
+#> 문자열의 수식을 분석하여 결과를 반환함
+#> @param t 수식
+#> @return 결과값 (1=값, 2...=로그)
+function Calculater(formula:text) :: objects:
+	return fxCalculater( {_formula} )
+
+# =============================================
+
+#> @invisible
+function fxCalculater(formula:text, pos:integer=0) :: objects:
+	replace " " with "" in {_formula}
+	set {_split::*} to fxCalculater_split( {_formula} )
+	loop number of {_split::*} times:
+		set {_i} to loop-number
+		set {_value} to {_split::%{_i}%}
+		if {_value} match "[()]":
+			add {_value} to {_data::*}
+		else if {_value} match "[-+*/^]":
+			if {_split::%{_i}+ 1%} match "[-+*/^]":
+				add "[&b%{_pos}%&r] &e""%{_value}%"" is excluded from formula." to {_error::*}
+			else:
+				add {_value} to {_data::*}
+		else if {_value} match "[-+]?[0-9]+(\.[0-9]+)?":
+			set {_v} to {_value}
+			set {_v} to last length of {_v} - 1 character of {_v} if first character of {_v} is "+"
+			if {_v} match "[-+]?[0-9]+":
+				add {_v} parsed as integer to {_data::*}
+			else:
+				add {_v} parsed as number to {_data::*}
+		else:
+			set {_first} to first index of "[" in {_value}
+			set {_last} to last index of "]" in {_value}
+			if {_first} or {_last} is -1:
+				add "[&b%{_pos}%&r] &c""%{_value}%"" is not number." to {_error::*}
+				delete {_data::%number of {_data::*}%}
+			else:
+				set {_func} to first {_first} - 1 character of {_value}
+				set {_inner} to subtext of {_value} from {_first} + 1 to {_last} - 1
+				if {_inner} is not set:
+					add "[&b%{_pos}%&r] &c""%{_value}%"" has no arguments." to {_error::*}
+					delete {_data::%number of {_data::*}%}
+				else:
+					set {_inner_data::*} to fxCalculater( {_inner}, round( {_pos} + {_first} ) )
+					if {_inner_data::1} is text:
+						add "[&b%{_pos}%&r] &c""%{_value}%"" has invalid arguments." to {_error::*}
+						delete {_data::%number of {_data::*}%}
+					else:
+						set {_v::*} to fxCalculater_function( {_func}, {_inner_data::1} )
+						add {_v::1} to {_data::*}
+						add {_v::2} to {_error::*}
+					add {_inner_data::2} to {_error::*}
+		add length of {_value} to {_pos}
+	set {_sort::*} to fxCalculater_sort( {_data::*} )
+	loop {_sort::*}:
+		if loop-value is a number:
+			add loop-value to {_stack::*}
+		else:
+			set {_a} to number of {_stack::*}
+			set {_b} to {_a} - 1
+			if loop-value is "+":
+				set {_value} to {_stack::%{_b}%} + {_stack::%{_a}%}
+			else if loop-value is "-":
+				set {_value} to {_stack::%{_b}%} - {_stack::%{_a}%}
+			else if loop-value is "*":
+				set {_value} to {_stack::%{_b}%} * {_stack::%{_a}%}
+			else if loop-value is "/":
+				set {_value} to {_stack::%{_b}%} / {_stack::%{_a}%}
+			else if loop-value is "^":
+				set {_value} to {_stack::%{_b}%} ^ {_stack::%{_a}%}
+			delete {_stack::%{_a}%}
+			delete {_stack::%{_b}%}
+			add {_value} to {_stack::*}
+	return ( {_stack::1} otherwise "NaN" ) and join {_error::*} with nl
+
+#> @invisible
+function fxCalculater_split(formula:text) :: texts:
+	set {_array::*} to {_formula} split at "" where [ input is not "" ]
+	set {_size} to length of {_formula}
+	set {_index} to 1
+	set {_i} to 1
+	while {_i} <= {_size}:
+		set {_char} to {_array::%{_i}%}
+		if {_char} is "[":
+			add index of "]" in ( subtext of {_formula} from {_i} + 1 to {_size} ) to {_i}
+		else if {_char} match "[-+]":
+			set {_isSymbol} to true if {_array::%{_i}-1%} don't match "[-+*/^(]"
+			set {_isSymbol} to true if {_array::%{_i}+1%} match "[-+*/^(]"
+		else if {_char} match "[*/^()]":
+			set {_isSymbol} to true
+		if {_isSymbol} is true:
+			clear {_isSymbol}
+			set {_value} to subtext of {_formula} from {_index} to {_i} - 1
+			add {_value} and {_char} to {_result::*}
+			set {_index} to {_i} + 1
+		add 1 to {_i}
+	set {_value} to subtext of {_formula} from {_index} to {_i} - 1
+	add {_value} to {_result::*}
+	return {_result::*}
+
+#> @invisible
+function fxCalculater_sort(list:objects) :: objects:
+	loop {_list::*}:
+		if loop-value is number:
+			add loop-value to {_stack::*}
+			set {_last_index} to number of {_oper_stack::*}
+			set {_char} to {_oper_stack::%{_last_index}%}
+			if {_char} match "[/*^]":
+				delete {_oper_stack::%{_last_index}%}
+				add {_char} to {_stack::*}
+		else if loop-value is ")":
+			while {_oper_stack::*} is set:
+				set {_last_index} to number of {_oper_stack::*}
+				set {_char} to {_oper_stack::%{_last_index}%}
+				delete {_oper_stack::%{_last_index}%}
+				stop loop if {_char} is "("
+				add {_char} to {_stack::*}
+		else if loop-value match "[-+]":
+			set {_last_index} to number of {_oper_stack::*}
+			set {_char} to {_oper_stack::%{_last_index}%}
+			if {_char} match "[+-/*^]":
+				delete {_oper_stack::%{_last_index}%}
+				add {_char} to {_stack::*}
+			add loop-value to {_oper_stack::*}
+		else:
+			add loop-value to {_oper_stack::*}
+	while {_oper_stack::*} is set:
+		set {_last_index} to number of {_oper_stack::*}
+		set {_char} to {_oper_stack::%{_last_index}%}
+		delete {_oper_stack::%{_last_index}%}
+		add {_char} to {_stack::*}
+	return {_stack::*}
+
+#> @invisible
+function fxCalculater_function(func:text, value:number) :: objects:
+	return abs( {_value} ) if {_func} is "abs"
+	return floor( {_value} ) if {_func} is "floor"
+	return round( {_value} ) if {_func} is "round"
+	return ceil( {_value} ) if {_func} is "ceil"
+	return sin( {_value} ) if {_func} is "sin"
+	return cos( {_value} ) if {_func} is "cos"
+	return tan( {_value} ) if {_func} is "tan"
+	return sqrt( {_value} ) if {_func} is "sqrt"
+	return ln( {_value} ) if {_func} is "ln"
+	return log( {_value} ) if {_func} is "log"
+	return exp( {_value} ) if {_func} is "exp"
+	return asin( {_value} ) if {_func} is "asin"
+	return acos( {_value} ) if {_func} is "acos"
+	return atan( {_value} ) if {_func} is "atan"

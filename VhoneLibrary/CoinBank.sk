@@ -1,0 +1,261 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+
+# 220728
+#  - 생성
+
+
+
+# ==================================================
+
+
+
+options:
+	ID: CoinBank
+	
+	COIN.ID: 1
+	COIN.NAME: 금화
+	COIN.UNIT: 골드
+
+	BASE: 0
+
+
+
+# ==================================================
+
+
+
+command /{@ID}.money <offline player=%player%>:
+	description: 예치금 확인
+	aliases: money
+	trigger:
+		set {_money} to CoinBank_account( uuid of arg-offline player )
+		# set {_displayName} to NickName_getDisplayName( arg-offline player )
+		# set {_displayNameInfo} to NickName_getDisplayNameInfo( arg-offline player )
+
+		set {_msg} to "${1:플레이어}의 예치금은 %{_money}% {@COIN.UNIT}입니다"
+		set {_args::*} to arg-offline player
+		Component_send(player, Component_systemMessage(script, {_msg}, {_args::*}))
+
+command /{@ID}.rank:
+	description: 예치금 랭킹
+	aliases: money.rank
+	trigger:
+		# EffSendRank( player, indexes of {{@ID}.account::*}, {{@ID}.account::*}, "[<rank>등] <key> - <value>원", 10)
+		CoinBank_rank( player )
+
+command /{@ID}.withdraw <integer>:
+	description: 출금
+	aliases: money.withdraw
+	trigger:
+		set {_result} to CoinBank_withdraw(player, arg-integer)
+		Component_send(player, {_result}) if {_result} is set
+
+command /{@ID}.deposit <integer>:
+	description: 입금
+	aliases: money.deposit
+	trigger:
+		set {_result} to CoinBank_deposit( player, arg-integer )
+		Component_send(player, {_result}) if {_result} is set
+
+
+
+#> @param uuid 플레이어 UUID
+#> @return 예치금
+function CoinBank_account(uuid:text) :: integer:
+	return {{@ID}.account::%{_uuid}%}
+
+
+
+#> @param recipient 수신자
+function CoinBank_rank(recipient:senders):
+	loop {{@ID}.account::*}:
+		set {_p} to loop-index parsed as offline player
+		set {_value::%{_p}%} to loop-value
+		set {_key::%{_p}%} to {_p}
+	loop {_value::*}:
+		set {_value} to loop-value * 100
+		add loop-index to {_rank::%{_value}%::*}
+	set {_index::*} to reversed indexes of {_rank::*}
+	loop {_index::*}:
+		set {_value} to loop-value parsed as integer / 100
+		add 1 to {_rank}
+		loop {_rank::%loop-value-1%::*}:
+			set {_msg} to "[%{_rank}%등] ${1:%{_key::%loop-value-2%}%} = %{_value}% 골드"
+			set {_args::*} to {_key::%loop-value-2%}
+			Component_send({_recipient::*}, Component_systemMessage(script, {_msg}, {_args::*}))
+		if {_rank} >= {_line}:
+			exit loop
+
+
+
+#> @param uuid 플레이어 UUID
+#> @param amount 출금액
+#> @return 0:출금 성공, 1:출금액이 0보다 작음, 2:출금액이 예치금보다 적음
+function CoinBank_withdraw(p:player, money:integer) :: object:
+	if {_money} <= 0:
+		set {_msg} to "출금할 수 없는 금액입니다"
+		return Component_systemMessage(script, {_msg})
+	
+	set {_uuid} to uuid of {_p}
+	set {_account} to {{@ID}.account::%{_uuid}%}
+	if {_account} < {_money}:
+		set {_msg} to "${1:예치금}이 부족합니다"
+		set {_args::*} to "%{_account}% {@COIN.UNIT}"
+		return Component_systemMessage(script, {_msg})
+
+	remove {_money} from {{@ID}.account::%{_uuid}%}
+
+	set {_accountNew} to {{@ID}.account::%{_uuid}%}
+	fxCoinBank_logger( {_p}, "WITHRAW", {_p}, {_account}, {_money}, {_accountNew} )
+
+	set {_coin} to CoinBank_GOLD_COIN( {_money} )
+	EffGiveAndDrop( {_p}, {_coin} )
+	set {_msg} to "%{_money}% {@COIN.UNIT}를 출금했습니다"
+	return Component_systemMessage(script, {_msg})
+
+
+
+#> @param p 플레이어 UUID
+#> @param money 입금액
+#> @return 0:입금 성공, 1:입금액이 0보다 작음, 2:소지금이 입금액보다 적음
+function CoinBank_deposit(p:player, money:integer) :: object:
+	if {_money} <= 0:
+		set {_msg} to "입금할 수 없는 금액입니다"
+		return Component_systemMessage(script, {_msg})
+	
+	set {_coin} to CoinBank_GOLD_COIN()
+	set {_amount} to Inventory_itemAmount((inventory of {_p}), {_coin})
+	if {_amount} < {_money}:
+		set {_msg} to "${1:소지금}이 부족합니다"
+		set {_args::*} to "%{_amount}% {@COIN.UNIT}"
+		return Component_systemMessage(script, {_msg})
+
+	set {_account} to {{@ID}.account::%{_uuid}%}
+	add {_money} to {{@ID}.account::%{_uuid}%}
+	set {_accountNew} to {{@ID}.account::%{_uuid}%}
+	fxCoinBank_logger({_p}, "deposit", {_p}, {_account}, {_money}, {_accountNew})
+	
+	remove {_money} of {_coin} from inventory of {_p}
+	set {_msg} to "%{_money}% {@COIN.UNIT}를 입금했습니다"
+	return Component_systemMessage(script, {_msg})
+
+
+
+# ==================================================
+
+
+
+command /{@ID}.print:
+	description: &c변수 출력
+	permission: {@ID}.print
+	trigger:
+		List_print("{@ID}.account")
+
+command /{@ID}.give [<player=%player%>] <integer=1>:
+	description: &c코인 지급
+	permission: {@ID}.give
+	trigger:
+		set {_money} to CoinBank_GOLD_COIN(arg-integer)
+		EffGiveAndDrop( arg-player, {_money} )
+		
+command /{@ID}.set <offline player=%player%> <integer>:
+	description: &c플레이어의 예치금을 세팅
+	permission: {@ID}.set
+	trigger:
+		CoinBank_setMoney(sender, arg-offline player, arg-integer)
+		
+command /{@ID}.add <offline player=%player%> <integer>:
+	description: &c플레이어의 예치금을 추가
+	permission: {@ID}.add
+	trigger:
+		CoinBank_addMoney(sender, arg-offline player, arg-integer)
+		
+command /{@ID}.remove <offline player=%player%> <integer>:
+	description: &c플레이어의 예치금을 제거
+	permission: {@ID}.remove
+	trigger:
+		CoinBank_removeMoney(sender, arg-offline player, arg-integer)
+
+
+
+#> @param amount 갯수
+#> @return 생성된 아이템
+function CoinBank_GOLD_COIN(amount:integer=1) :: item:
+	set {_i} to {_amount} of gold ingot named "&r{@COIN.NAME}"
+	set custom model data of {_i} to {@COIN.ID}
+	return {_i}
+
+#> @return 코인 단위
+function CoinBank_UNIT() :: text:
+	return "{@COIN.UNIT}"
+
+#> @param s 명령자
+#> @param p 플레이어
+#> @param money 금액
+function CoinBank_setMoney(s:sender, p:player, money:integer):
+	set {_uuid} to uuid of {_p}
+	set {_before} to {{@ID}.account::%{_uuid}%}
+	set {{@ID}.account::%{_uuid}%} to {_money}
+	send "[%{_p}%] 예치금: %{{@ID}.account::%{_uuid}%}% {@COIN.UNIT}" to {_s}
+	fxCoinBank_logger( {_s}, "SET", {_p}, {_before}, {_money}, {{@ID}.account::%{_uuid}%} )
+
+#> @param s 명령자
+#> @param p 플레이어
+#> @param money 금액
+function CoinBank_addMoney(s:sender, p:player, money:integer):
+	set {_uuid} to uuid of {_p}
+	set {_before} to {{@ID}.account::%{_uuid}%}
+	add {_money} to {{@ID}.account::%{_uuid}%}
+	send "[%{_p}%] 예치금: %{{@ID}.account::%{_uuid}%}% {@COIN.UNIT}" to {_s}
+	fxCoinBank_logger( {_s}, "ADD", {_p}, {_before}, {_money}, {{@ID}.account::%{_uuid}%} )
+	
+#> @param s 명령자
+#> @param p 플레이어
+#> @param money 금액
+function CoinBank_removeMoney(s:sender, p:player, money:integer):
+	set {_uuid} to uuid of {_p}
+	set {_before} to {{@ID}.account::%{_uuid}%}
+	remove {_money} from {{@ID}.account::%{_uuid}%}
+	send "[%{_p}%] 예치금: %{{@ID}.account::%{_uuid}%}% {@COIN.UNIT}" to {_s}
+	fxCoinBank_logger( {_s}, "remove", {_p}, {_before}, {_money}, {{@ID}.account::%{_uuid}%} )
+
+
+
+# ==================================================
+
+
+
+on join:
+	fxCoinBank_checkMoney(player)
+
+
+
+# ==================================================
+
+
+
+#> @invisible
+function fxCoinBank_checkMoney(p:player):
+	set {_uuid} to uuid of {_p}
+	{{@ID}.account::%{_uuid}%} is not set
+	set {{@ID}.account::%{_uuid}%} to {@BASE}
+
+
+
+#> @param s 명령자
+#> @param type 명령타입
+#> @param p 플레이어
+#> @param before 이전 값
+#> @param v 변경 값
+#> @param after 이후 값
+#> ***
+#> @invisible
+function fxCoinBank_logger(s:sender,type:text,p:player,before:integer,v:integer,after:integer):
+	set {_info::*} to {_s} and {_type}, {_p}, {_before}, {_v}, {_after}
+	Logger( "{@ID}", {_info::*} )
+
+
+
+# ==================================================

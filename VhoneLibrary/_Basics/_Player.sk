@@ -1,0 +1,183 @@
+import:
+	org.bukkit.attribute.AttributeModifier
+	org.bukkit.attribute.AttributeModifier$Operation # ADD_NUMBER / ADD_SCALAR / MULTIPLY_SCALAR_1
+	org.bukkit.inventory.EquipmentSlot # CHEST/ FEET/ HAND/ HEAD/ LEGS/ OFF_HAND
+	java.util.UUID
+
+
+
+options:
+	ID: Player
+
+
+
+on damage of player:
+	send "damage=%damage%" to console
+
+
+
+#> @param p 플레이어
+#> @param item::hand 새로운 메인 아이템
+#> @param item::off_hand 새로운 보조 아이템
+#> @return 공격량
+function Player_finalAttackDamage(p:player, item::hand:object="", item::off_hand:object="") :: number:
+	set {_base} to attack damage attribute of {_p}
+	set {_value::*} to 0, 1, 1
+	set {_item::hand} to tool of {_p} if {_item::hand} is text
+	set {_item::off_hand} to off hand tool of {_p} if {_item::off_hand} is text
+	set {_item::head} to helmet of {_p}
+	set {_item::chest} to chestplate of {_p}
+	set {_item::legs} to leggings of {_p}
+	set {_item::feet} to boots of {_p}
+	loop {_item::*}:
+		set {_item} to loop-value
+		{_item} is not air
+		set {_slot} to EquipmentSlot.valueOf(loop-index in upper case)
+		set {_modifier::*} to fxPlayer_attackDamageModifiers({_item}, {_slot})
+		if {_modifier::*} is set:
+			set {_value::1} to {_value::1}+{_modifier::1} if {_modifier::1} is not 0
+			set {_value::2} to {_value::2}+{_modifier::2} if {_modifier::2} is not 1
+			set {_value::3} to {_value::3}*{_modifier::3} if {_modifier::3} is not 1
+			delete {_modifier::*}
+		else if loop-index is "hand":
+			set {_attack} to fxPlayer_itemAttackDamage({_item})
+			set {_base} to {_attack} if {_attack} is not 0
+
+	#	<포션이펙트>
+	#		[힘] Strength 접근 피해 레벨당 3 증가
+	#		[나약함] weakness 접근 피해 레벨당 4 감소
+	loop potion effects of {_p}:
+		set {_effect::*} to Parser(loop-value)
+		if {_effect::1} is strength:
+			add {_effect::2} * 3 to {_base}
+		else if {_effect::1} is weakness:
+			remove {_effect::2}*4 from {_base}
+
+	#	<인첸트>
+	#		살충 bane of athropods 절지 동물 피해 증가
+	#		강타 smite 언데드 몹 피해 증가
+	#		찌르기 impaling 수중 개체 피해 증가
+	#		휩쓸기 sweeping 쓸어내기 피해 증가
+	#		날카로움 sharpness 피해 증가
+	#		밀치기 knockback 넉백 증가
+	set {_ench} to 0
+	if {_item::hand} is not air:
+		loop enchantments of {_item::hand}:
+			set {_enchData::*} to Parser(loop-value)
+			if {_enchData::1} is sharpness: # 1.0/1.5/2.0/2.5/3.0
+				add {_enchData::2}*0.5+0.5 to {_ench}
+
+	# send "(%{_base}%+%{_value::1}%)*%{_value::2}%*%{_value::3}%+%{_ench}%" to console
+	return ({_base}+{_value::1})*{_value::2}*{_value::3}+{_ench}
+
+
+	# y of velocity of player가 0보다 작으면 크리티컬
+	# 일반 공격 최대 거리는 3.35블록
+	# 재공격 시간에 따라 공격력이 감소
+
+
+#> @invisible
+function fxPlayer_attackDamageModifiers(item:item, slot:object) :: numbers:
+	set {_value::*} to 0, 1, 1
+	set {_modifier::*} to (...{_item}.getItemMeta().getAttributeModifiers(attack damage)) where [ input.getSlot() is {_slot} ]
+	stop if {_modifier::*} is not set
+	loop {_modifier::*}:
+		set {_operation} to loop-value.getOperation()
+		set {_amount} to loop-value.getAmount()
+		if {_operation} is Operation.ADD_NUMBER:
+			set {_value::1} to {_value::1}+{_amount}
+		else if {_operation} is Operation.ADD_SCALAR:
+			set {_value::2} to {_value::2}+{_amount}
+		else if {_operation} is Operation.MULTIPLY_SCALAR_1:
+			set {_value::3} to {_value::3}*(1+{_amount})
+	return {_value::*}
+
+
+
+aliases:
+	damage_1.0 = wooden hoe, stone hoe, golden hoe, iron hoe, diamond hoe, netherite hoe
+	damage_2.0 = wooden pickaxe, golden pickaxe
+	damage_2.5 = wooden shovel, golden shovel
+	damage_3.0 = stone pickaxe
+	damage_3.5 = stone shovel
+	damage_4.0 = wooden sword, golden sword, iron pickaxe
+	damage_4.5 = iron shovel
+	damage_5.0 = stone sword, diamond pickaxe
+	damage_5.5 = diamond shovel
+	damage_6.0 = iron sword, netherite pickaxe
+	damage_6.5 = netherite shovel
+	damage_7.0 = wooden axe, diamond sword, golden axe
+	damage_8.0 = netherite sword
+	damage_9.0 = stone axe, iron axe, diamond axe
+	damage_10.0 = netherite axe
+
+#> @invisible
+function fxPlayer_itemAttackDamage(item:item) :: number:
+	return 1.0 if {_item} is damage_1.0
+	return 2.0 if {_item} is damage_2.0
+	return 2.5 if {_item} is damage_2.5
+	return 3.0 if {_item} is damage_3.0
+	return 3.5 if {_item} is damage_3.5
+	return 4.0 if {_item} is damage_4.0
+	return 4.5 if {_item} is damage_4.5
+	return 5.0 if {_item} is damage_5.0
+	return 5.5 if {_item} is damage_5.5
+	return 6.0 if {_item} is damage_6.0
+	return 6.5 if {_item} is damage_6.5
+	return 7.0 if {_item} is damage_7.0
+	return 8.0 if {_item} is damage_8.0
+	return 9.0 if {_item} is damage_9.0
+	return 10.0 if {_item} is damage_10.0
+	return 0
+
+
+
+
+
+
+command /item.attackDamageItem:
+	trigger:
+		set {_item} to iron sword named "Attribute Item"
+		set {_meta} to {_item}.getItemMeta()
+		set {_slot} to EquipmentSlot.HAND
+
+		set {_uuid} to UUID.randomUUID()
+		set {_operation} to Operation.MULTIPLY_SCALAR_1
+		set {_slot} to EquipmentSlot.HAND
+		set {_attributeModifier} to new AttributeModifier({_uuid}, "", 5, {_operation}, {_slot})
+		{_meta}.addAttributeModifier(attack damage, {_attributeModifier})
+
+		set {_uuid} to UUID.randomUUID()
+		set {_operation} to Operation.MULTIPLY_SCALAR_1
+		set {_slot} to EquipmentSlot.HAND
+		set {_attributeModifier} to new AttributeModifier({_uuid}, "", 3, {_operation}, {_slot})
+		{_meta}.addAttributeModifier(attack damage, {_attributeModifier})
+
+		set {_uuid} to UUID.randomUUID()
+		set {_operation} to Operation.ADD_NUMBER
+		set {_slot} to EquipmentSlot.HAND
+		set {_attributeModifier} to new AttributeModifier({_uuid}, "", 4, {_operation}, {_slot})
+		{_meta}.addAttributeModifier(attack damage, {_attributeModifier})
+
+		set {_uuid} to UUID.randomUUID()
+		set {_operation} to Operation.ADD_NUMBER
+		set {_slot} to EquipmentSlot.HAND
+		set {_attributeModifier} to new AttributeModifier({_uuid}, "", 2, {_operation}, {_slot})
+		{_meta}.addAttributeModifier(attack damage, {_attributeModifier})
+
+		{_item}.setItemMeta({_meta})
+		give {_item} to player
+
+command /item.attackDamageItem2:
+	trigger:
+		set {_item} to iron chestplate named "Attribute Item"
+		set {_meta} to {_item}.getItemMeta()
+
+		set {_uuid} to UUID.randomUUID()
+		set {_operation} to Operation.ADD_NUMBER
+		set {_slot} to EquipmentSlot.CHEST
+		set {_attributeModifier} to new AttributeModifier({_uuid}, "", 2, {_operation}, {_slot})
+		{_meta}.addAttributeModifier(attack damage, {_attributeModifier})
+ 
+		{_item}.setItemMeta({_meta})
+		give {_item} to player

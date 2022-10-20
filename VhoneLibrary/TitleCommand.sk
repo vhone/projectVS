@@ -1,0 +1,387 @@
+options:
+	ID: TitleCommand
+	DEBUG: false
+
+	LENGTH: 2
+	CHAR: _
+
+	META.TICK: metadata "titlecommand.tick"
+	META.INDEX: metadata "titlecommand.index"
+	META.TRIGGER: metadata "titlecommand.trigger"
+	META.DISPLAY: metadata "titlecommand.display"
+
+
+
+# ==================================================
+
+
+
+command /{@ID}.print:
+	permission: {@ID}.print
+	trigger:
+		TitleCommand_print()
+
+command /{@ID}.register:
+	permission: {@ID}.register
+	trigger:
+		set {_item} to tool
+		TitleCommand_register({_item}, "구역.지도", "/protectregion.open.map.region")
+		TitleCommand_register({_item}, "구역.추가", "/say 구역.추가")
+		TitleCommand_register({_item}, "구역.제거", "/say 구역.제거")
+		TitleCommand_register({_item}, "구역.용도.공터", "/say 구역.용도.공터")
+		TitleCommand_register({_item}, "구역.용도.광장", "/say 구역.용도.광장")
+		TitleCommand_register({_item}, "구역.용도.주거", "/say 구역.용도.주거")
+		TitleCommand_register({_item}, "구역.용도.농지", "/say 구역.용도.농지")
+		TitleCommand_register({_item}, "구역.용도.초원", "/say 구역.용도.초원")
+		TitleCommand_register({_item}, "구역.용도.산림", "/say 구역.용도.산림")
+		TitleCommand_register({_item}, "구역.그룹", "/say 구역.그룹")
+		TitleCommand_register({_item}, "그룹.가격", "/say 그룹.가격")
+		TitleCommand_register({_item}, "그룹.공유.개인", "/say 그룹.공유.개인")
+		TitleCommand_register({_item}, "그룹.공유.공공", "/say 그룹.공유.공공")
+		TitleCommand_register({_item}, "그룹.공유.임대", "/say 그룹.공유.임대")
+		# TitleCommand_print()
+
+command /{@ID}.reset:
+	permission: {@ID}.reset
+	trigger:
+		delete {{@ID}::*}
+		# loop all players:
+		# 	set {_p} to loop-player
+		# 	delete {@META.TRIGGER} of {_p}
+		# 	delete {@META.INDEX} of {_p}
+		# 	delete {@META.DISPLAY} of {_p}
+		# 	MetaVariable_clear({_p}, "{@ID}")
+		# 	MetaVariable_print({_p}, "{@ID}")
+
+
+
+# ==================================================
+
+
+
+#> 변수 출력
+function TitleCommand_print():
+	List_print("{@ID}")
+
+
+
+#> @param p 플레이어
+#> @return 타이틀 명령 사용 여부
+function TitleCommand_isOpen(p:player) :: boolean:
+	return true if {@META.TRIGGER} of {_p} is set
+	return false
+
+
+
+#> @param trigger 트리거 아이템
+#> @param node 명령어 패스
+#> @param command 명령어
+#> @param sequence 순서
+function TitleCommand_register(trigger:item, node:text, command:text, sequence:integer=-1) :: boolean:
+	return false if {_trigger}, {_node}, {_command} is not set
+
+	# Key
+	set {_key} to fxTitleCommand_key({_trigger})
+
+	# node
+	set {_char::*} to ( {_node} split at "" ) where [ input is not "" ]
+	set {_size} to size of {_char::*}
+	set {_i} to 0
+	while {_i} < {_size}:
+		add 1 to {_i}
+		set {_char} to {_char::%{_i}%}
+		{_char} is not ":"
+		if {_char} is "\":
+			add 1 to {_i}
+		else if {_char} is ".":
+			add 1 to {_i}
+			if {_node::*} is not set:
+				set {_node::0} to join {_nodeChar::*}
+			else:
+				add join {_nodeChar::*} to {_node::*}
+			clear {_nodeChar::*}
+		add {_char::%{_i}%} to {_nodeChar::*}
+	if {_nodeChar::*} is set:
+		add join {_nodeChar::*} to {_node::*}
+		clear {_nodeChar::*}
+
+	# path
+	set {_path} to {_key}
+	loop {_node::*}:
+		set {_index} to loop-index
+		set {_value} to loop-value
+		set {_i} to -1
+		loop indexes of {{@ID}::%{_path}%::*}:
+			add 1 to {_i}
+			set {_k} to "%{_i}%{@CHAR}%{_value}%"
+			if loop-text is {_k}:
+				set {_p} to join {_path} and {_k} with "::"
+				stop loop
+		if {_p} is not set:
+			set {_size} to number of indexes of {{@ID}::%{_path}%::*}
+			set {_p} to join {_path} and "%{_size}%{@CHAR}%{_value}%" with "::"
+		set {_path} to {_p}
+		delete {_p}
+
+	# register
+	set {{@ID}::%{_path}%} to {_command}
+	# send "[&6{@ID}&r] Node[&akey&r=&b%{_key}%&r,&anode&r=&b%{_node}%&r,&acmd&r=&b%{_command}%&r] is registered." to console
+	return true
+
+
+
+#> @param trigger 트리거 아이템
+#> @return 타이틀 명령 제거 여부
+function TitleCommand_remove(trigger:item) :: boolean:
+	return false if {_trigger} is not set
+
+	# Key
+	set {_key} to fxTitleCommand_key({_trigger})
+
+	return false if indexes of {{@ID}::%{_key}%::*} is not set
+
+	delete {{@ID}::%{_key}%::*}
+	return true
+
+
+
+function TitleCommand_enter(p:player) :: boolean:
+	return false if {_p} is not set
+
+	# key
+	set {_key} to fxTitleCommand_key(tool of {_p})
+	return false if indexes of {{@ID}::%{_key}%::*} is not set
+
+	# Open
+	if TitleCommand_isOpen({_p}) is false: 
+		set {_path} to {_key}
+		send "&aOpen" to console if {@DEBUG} is true
+
+	else:
+		# Path & Index
+		set {_index} to {@META.INDEX} of {_p}
+		set {_path::*} to MetaVariable_getAll({_p}, "{@ID}")
+		set {_path} to join {_key} and {_path::*} with "::"
+
+		# Execute
+		set {_cmd} to {{@ID}::%{_path}%::%{_index}%}
+		if {_cmd} is set:
+			ExecuteCommandAsOp({_p}, {_cmd})
+			TitleCommand_close({_p})
+			send "&aExecute" to console if {@DEBUG} is true
+			return true
+
+		return false if indexes of {{@ID}::%{_path}%::%{_index}%::*} is not set
+
+		# Enter
+		MetaVariable_add({_p}, "{@ID}", {_index})
+		set {_path} to join {_path} and {_index} with "::"
+		send "&aEnter" to console if {@DEBUG} is true
+
+	# Display
+	set {_indexes::*} to indexes of {{@ID}::%{_path}%::*}
+	set {_index} to {_indexes::1}
+	return fxTitleCommand_update({_p}, {_indexes::*}, {_index})
+
+
+
+function TitleCommand_exit(p:player) :: boolean:
+	return false if {_p} is not set
+	return false if TitleCommand_isOpen({_p}) is false
+
+	# key
+	set {_key} to fxTitleCommand_key(tool of {_p})
+	return false if indexes of {{@ID}::%{_key}%::*} is not set
+
+	# Close
+	if MetaVariable_isExist({_p}, "{@ID}") is false:
+		TitleCommand_close({_p})
+		send "&aClose" to console if {@DEBUG} is true
+		return true
+	
+	# Path & Index
+	set {_index} to MetaVariable_pop({_p}, "{@ID}")
+	set {_path::*} to MetaVariable_getAll({_p}, "{@ID}")
+	set {_path} to join {_key} and {_path::*} with "::"
+
+	send "&aExit" to console if {@DEBUG} is true
+	set {_indexes::*} to indexes of {{@ID}::%{_path}%::*}
+	return fxTitleCommand_update({_p}, {_indexes::*}, {_index})
+
+
+
+function TitleCommand_move(p:player, movement:integer) :: boolean:
+	return false if {_p}, {_movement} is not set
+	return false if TitleCommand_isOpen({_p}) is false
+	return true if {_movement} is 0
+
+	# key
+	set {_key} to fxTitleCommand_key(tool of {_p})
+	return false if indexes of {{@ID}::%{_key}%::*} is not set
+
+	# Path & Index
+	set {_index} to {@META.INDEX} of {_p}
+	set {_path::*} to MetaVariable_getAll({_p}, "{@ID}")
+	set {_path} to join {_key} and {_path::*} with "::"
+
+	# Index Movement
+	set {_indexes::*} to indexes of {{@ID}::%{_path}%::*}
+	loop {_indexes::*}:
+		loop-value is {_index}
+		set {_move} to ( loop-index parsed as integer ) + {_movement}
+		stop loop
+	set {_indexesSize} to number of {_indexes::*}
+	add {_indexesSize} to {_move} if {_move} < 1
+	remove {_indexesSize} from {_move} if {_move} > {_indexesSize}
+	set {_index} to {_indexes::%{_move}%}
+
+	return fxTitleCommand_update({_p}, {_indexes::*}, {_index})
+
+
+
+#> @param p 플레이어
+#> @return boolean
+function TitleCommand_close(p:player) :: boolean:
+	return false if {_p} is not set
+	return false if TitleCommand_isOpen({_p}) is false
+	delete {@META.TICK} of {_p}
+	delete {@META.TRIGGER} of {_p}
+	delete {@META.INDEX} of {_p}
+	delete {@META.DISPLAY} of {_p}
+	MetaVariable_clear({_p}, "{@ID}")
+	set {_section::*} to "subtitle", "action_bar"
+	set {_msg::*} to "", ""
+	Player_sendMessageToScreen({_p}, {_section::*}, {_msg::*} )
+	return true
+
+
+
+# ==================================================
+
+
+
+on skript stop: # 변수 제거
+	delete {{@ID}::*}
+
+on left click with priority low: # 좌클릭 이벤트
+	if player is sneaking: # open / select
+		set {_result} to TitleCommand_enter(player)
+	else: # move left
+		set {_result} to TitleCommand_move(player, -1)
+	if {_result} is true:
+		cancel event
+
+on right click with priority low: # 우클릭 이벤트
+	if player is sneaking: # close / back
+		set {_result} to TitleCommand_exit(player)
+	else: # move right
+		set {_result} to TitleCommand_move(player, 1)
+	if {_result} is true:
+		cancel event
+
+on drop with priority low: # 아이템 드랍
+	TitleCommand_isOpen(player) is true
+	event-item is {@META.TRIGGER} of player
+	TitleCommand_close( player )
+	
+on swap item with priority low: # 손바꿈
+	TitleCommand_isOpen(player) is true
+	cancel event
+	
+on tool change with priority low: # 핫바 변경
+	TitleCommand_isOpen(player) is true
+	tool is not {@META.TRIGGER} of player
+	TitleCommand_close(player)
+
+on inventory close with priority low: # 인벤토리 변경
+	TitleCommand_isOpen(player) is true
+	tool is not {@META.TRIGGER} of player
+	TitleCommand_close(player)
+
+on death of player: # 사망
+	TitleCommand_isOpen(victim) is true
+	TitleCommand_close(victim)
+
+on damage of player: # 피격
+	TitleCommand_isOpen(victim) is true
+	TitleCommand_close(victim)
+	
+
+#> Item Type, Custom Model Data
+#> @invisible
+function fxTitleCommand_key(item:item) :: text:
+	set {_key} to minecraft name of {_item}
+	replace "minecraft:" with "" in {_key}
+	set {_data} to custom model data of {_item}
+	set {_data} to "%{_data}%" if {_data} > 0
+	return join {_key}, {_data} with "."
+
+#> @invisible
+function fxTitleCommand_task(p:player): 
+	if {@META.TRIGGER} of {_p} is set:
+		set {@META.TICK} of {_p} to 0
+	else:
+		set {_tool} to tool of {_p}
+		set {@META.TRIGGER} of {_p} to {_tool}
+		set {_msg::2} to "&fShift&7+&fLMB &7선택 &8| &fLMB &7왼쪽으로 이동 &8| &fRMB &7오른쪽으로 이동 &8| &fShift&7+&fRMB &7나가기"
+		while {@META.TRIGGER} of {_p} is set:
+			set {_section::*} to "subtitle", "action_bar"
+			set {_msg::1} to ( {@META.DISPLAY} of {_p} ) otherwise ""
+			Player_sendMessageToScreen({_p}, {_section::*}, {_msg::*})
+			send "&aDisplay" to console if {@DEBUG} is true
+
+			set {@META.TICK} of {_p} to 20
+			while {@META.TICK} of {_p} > 0:
+				set {_tick} to {@META.TICK} of {_p}
+				remove 1 from {_tick}
+				set {@META.TICK} of {_p} to {_tick}
+				wait 1 tick
+		send "&aStop" to console if {@DEBUG} is true
+
+#> @invisible
+function fxTitleCommand_update(p:player, indexes:texts, index:text) :: boolean:
+	
+	# Indexes Modify
+	set {_size} to number of {_indexes::*}
+	set {_length} to {@LENGTH} * 2 + 1
+	if {_size} > {_length}:
+		set {_indexData::*} to {_index} parsed as "%integer%{@CHAR}%text%"
+		set {_i} to {_indexData::1} + 1
+		loop integers from {_i} - {@LENGTH} to {_i} + {@LENGTH}:
+			if loop-integer < 1:
+				set {_j} to round(loop-integer + {_size})
+			else if loop-value > {_size}:
+				set {_j} to round(loop-integer - {_size})
+			else:
+				set {_j} to loop-integer
+			add {_indexes::%{_j}%} to {_i::*}
+		set {_indexes::*} to {_i::*}
+	
+	# Choise
+	loop {_indexes::*}:
+		set {_parse::*} to loop-value parsed as "%integer%{@CHAR}%text%"
+		if loop-value is not {_index}:
+			set {_style::1} to "&f"
+		else:
+			set {_style::1} to "&c"
+		if {_parse::1} is 0:
+			{_size} > {_length}
+			set {_style::2} to "&n" 
+		set {_choice::%loop-index%} to join {_style::*}, {_parse::2}, "&r"
+		delete {_style::*}
+	return false if {_choice::*} is not set
+	set {_choice} to join {_choice::*} with " &7| "
+
+	# Directory
+	set {_path::*} to MetaVariable_getAll({_p}, "{@ID}")
+	loop {_path::*}:
+		set {_parse::*} to loop-value parsed as "%integer%{@CHAR}%text%"
+		set {_dir::%loop-index%} to "&c%{_parse::2}%"
+	set {_dir} to ( join {_key} and {_dir::*} with "&f>" ) otherwise ""
+	set {_dir} to "%{_dir}% &f- " if {_dir} is not ""
+	
+	# Meta
+	set {@META.INDEX} of {_p} to {_index}
+	set {@META.DISPLAY} of {_p} to "%{_dir}%&7[ %{_choice}% &7]"
+	fxTitleCommand_task({_p})
+	return true

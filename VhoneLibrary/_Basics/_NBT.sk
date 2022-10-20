@@ -1,0 +1,169 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+# 배포 : https://www.koreaminecraft.net/scriptqna/1706450
+
+# 220705
+#  - 생성
+
+options:
+	ID: NBT
+
+import:
+	org.bukkit.Bukkit
+
+option BUKKIT:
+	get:
+		set {_v} to Bukkit.getServer().getClass().getPackage().getName().split("\.")[3]
+		return "org.bukkit.craftbukkit.%{_v}%"
+
+import:
+	{@BUKKIT}.inventory.CraftItemStack
+	net.minecraft.world.item.ItemStack
+	net.minecraft.nbt.MojangsonParser
+	net.minecraft.nbt.NBTTagCompound
+	# net.minecraft.nbt.NBTTagByte
+	# net.minecraft.nbt.NBTTagInt
+	# net.minecraft.nbt.NBTTagLong
+	# net.minecraft.nbt.NBTTagShort
+	# net.minecraft.nbt.NBTTagDouble
+	# net.minecraft.nbt.NBTTagFloat
+	# net.minecraft.nbt.NBTTagString
+	# net.minecraft.nbt.NBTTagByteArray
+	# net.minecraft.nbt.NBTTagIntArray
+	# net.minecraft.nbt.NBTTagLongArray
+	# net.minecraft.nbt.NBTTagList
+
+text property nbt:
+	return type: object
+	get:
+		parse if first 4 character of minecraft version is "1.18":
+			return MojangsonParser.a(expr-1)
+		else parse if first 4 character of minecraft version is "1.17":
+			return MojangsonParser.parse(expr-1)
+
+# ==================================================
+
+#> @since MC 1.19, Skript 2.6.2, skript-refelct 2.3
+function NBT_getItem(i:item) :: object:
+	set {_compound} to new NBTTagCompound()
+	set {_nmsItemStack} to CraftItemStack.asNMSCopy( {_i} )
+	{_nmsItemStack}.b( {_compound} )
+	return {_compound}
+
+
+
+#> @since MC 1.19, Skript 2.6.2, skript-refelct 2.3
+function NBT_getItemMeta(i:item) :: object:
+	set {_nmsItemStack} to CraftItemStack.asNMSCopy( {_i} )
+	return {_nmsItemStack}.u
+
+item property nbt:
+	return type: object
+	get:
+		return NBT_getItem( expr-1 )
+
+item property meta nbt:
+	return type: object
+	get:
+		return NBT_getItemMeta( expr-1 )
+
+expression item with nbt %object%:
+	return type: item
+	get:
+		return new CraftItemStack( new ItemStack( expr-1 ) )
+
+#	public NBTTagCompound b(NBTTagCompound nbt) {
+#		MinecraftKey minecraftkey = IRegistry.Y.b(c());
+#		nbt.a("id", (minecraftkey == null) ? "minecraft:air" : minecraftkey.toString());
+#		nbt.a("Count", (byte)this.r);
+#		if (this.u != null)
+#			nbt.a("tag", (NBTBase)this.u.g()); 
+#		return nbt;
+#	}
+expression %item% with %object%:
+	return type: item
+	get:
+		set {_compound} to new NBTTagCompound()
+		set {_id} to expr-1.getType().toString().toLowerCase()
+		set {_count} to expr-1.getAmount()
+		{_compound}.a("id", "minecraft:%{_id}%")
+		{_compound}.a("Count", {_count})
+		{_compound}.a("tag", expr-2)
+		return new CraftItemStack( new ItemStack( {_compound} ) )
+
+command /{@ID}.tool:
+	trigger:
+		send nbt of tool
+		send meta nbt of tool
+		give diamond sword with meta nbt of tool to player
+
+# ==================================================
+
+entity property nbt:
+	return type: object
+	get:
+		set {_compound} to new NBTTagCompound()
+		expr-1.getHandle().f( {_compound} )
+		return {_compound}
+
+command /{@ID}.entity:
+	trigger:
+		send nbt of targeted entity
+
+# ==================================================
+
+# expression:
+# 	patterns:
+# 		keys of %object%
+# 		%object%'s keys
+# 	return type: texts
+# 	get:
+# 		if expr-1 is instance of NBTTagCompound:
+# 			set {_keys::*} to ...expr-1.getKeys()
+# 		return {_keys::*}
+
+# expression:
+# 	patterns:
+# 		%text% of %object%
+# 	return type: object
+# 	get:
+# 		if expr-2 is instance of NBTTagCompound:
+# 			set {_comp} to expr-2
+# 			loop expr-1 split at ".":
+# 				set {_comp} to {_comp}.get( loop-text )
+# 			send {_comp}.getClass() to console
+# 			if {_comp} is instance of NBTTagByte:
+# 				set {_comp} to {_comp}.asByte()
+# 			else if {_comp} is instance of NBTTagInt:
+# 				set {_comp} to {_comp}.asInt()
+# 			else if {_comp} is instance of NBTTagLong:
+# 				set {_comp} to {_comp}.asLong()
+# 			else if {_comp} is instance of NBTTagShort:
+# 				set {_comp} to {_comp}.asShort()
+# 			else if {_comp} is instance of NBTTagDouble:
+# 				set {_comp} to {_comp}.asDouble()
+# 			else if {_comp} is instance of NBTTagFloat:
+# 				set {_comp} to {_comp}.asFloat()
+# 			else if {_comp} is instance of NBTTagString:
+# 				set {_comp} to {_comp}.asString()
+# 		return {_comp}
+# 	# set:
+# 	#     if expr-2 is instance of NBTTagCompound:
+# 	#         set {_comp} to expr-2
+# 	#         loop expr-1 split at ".":
+# 	#             set {_comp} to {_comp}.get( loop-text )
+# 	#         if {_comp} is instance of NBTTagByte:
+# 	#             {_comp}.setByte( change value )
+# 	#         else if {_comp} is instance of NBTTagInt:
+# 	#             {_comp}.setInt( change value )
+# 	#         else if {_comp} is instance of NBTTagLong:
+# 	#             {_comp}.setLong( change value )
+# 	#         else if {_comp} is instance of NBTTagShort:
+# 	#             {_comp}.setShort( change value )
+# 	#         else if {_comp} is instance of NBTTagDouble:
+# 	#             {_comp}.setDouble( change value )
+# 	#         else if {_comp} is instance of NBTTagFloat:
+# 	#             {_comp}.setFloat( change value )
+# 	#         else if {_comp} is instance of NBTTagString:
+# 	#             {_comp}.setString( change value )

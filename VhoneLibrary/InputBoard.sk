@@ -1,0 +1,434 @@
+options:
+	ID: InputBoard
+	DEBUG: true
+
+	META.POINTER: metadata "InputBoard.pointer" of {_p}
+	META.KEY: metadata "InputBoard.key" of {_p}
+	META.INPUT: metadata "InputBoard.input" of {_p}
+	META.RESULT: metadata "InputBoard.result" of {_p}
+	META.CLOSER: metadata "InputBoard.closer" of {_p}
+	META.PATTERN: metadata "InputBoard.prefix" of {_p}
+
+	BLANK: glass pane
+	BLANK.ID: 1
+
+	FUNC.CLOSE: CLOSE
+	FUNC.RESET: RESET
+	FUNC.BACK_SPACE: BACK_SAPCE
+	FUNC.ENTER: ENTER
+	FUNC.CALCULATE: CALCULATE
+
+	LANG.KR.CLOSE: 닫기
+	LANG.KR.RESET: 모두지우기
+	LANG.KR.BACK_SPACE: 지우기
+	LANG.KR.ENTER: 입력
+	LANG.KR.CALCULATE: 연산
+
+# ==================================================
+
+command /{@ID}.reset:
+	permission: {@ID}.reset
+	trigger:
+		delete {{@ID}::*}
+		List_print("{@ID}")
+		
+command /{@ID}.open.natural:
+	trigger:
+		InputBoard_openNatural( player )
+
+command /{@ID}.open.calculator:
+	trigger:
+		InputBoard_openCalculator( player )
+
+# ==================================================
+
+
+
+#> @param p 플레이어
+#> @return 보드에 입력한 값을 반환
+function InputBoard_getResult(p:player) :: object:
+	return {@META.RESULT}
+
+
+
+#> @param p 플레이어
+#> @return 보드에 입력한 키값을 반환
+function InputBoard_getInput(p:player) :: object:
+	return {@META.INPUT}
+
+
+
+#> @param p 플레이어
+#> @return 사용중인 보드의 타입을 반환
+function InputBoard_getKey(p:player) :: text:
+	return {@META.KEY}
+
+
+
+#> @param p 플레이어
+#> @return 사용중인 보드가 있으면 true, 없으면 false
+function InputBoard_isUsing(p:player) :: boolean:
+	return true if {@META.POINTER} is set
+	return false
+
+
+
+#> @param key 키
+#> @return 보드 제거
+function InputBoard_delete(key:text) :: boolean:
+	return false if {{@ID}::%{_key}%::*} is not set
+	delete {{@ID}::%{_key}%::*}
+	return true
+	
+
+
+#> @param key 키
+#> @param inv 인벤토리 레이아웃
+#> @param funcKey 기능 맵 키
+#> @param funcValue 기능 맵 값
+#> @param force 덮어쓰기
+#> @return 
+function InputBoard_register(key:text, inv:inventory, funcKey:texts="", funcValue:objects="", force:boolean=false) :: boolean:
+	return false if {_key} or {_inv} is not set
+	set {_funcKey::*} to {_funcKey::*} where [input is not ""]
+	delete {{@ID}::%{_key}%::*} if {_force} is true
+	set {{@ID}::%{_key}%::type} to type of {_inv}
+	set {{@ID}::%{_key}%::rows} to rows of {_inv} if type of {_inv} is chest inventory
+	loop integers from 0 to Inventory_slotAmount({_inv}) - 1:
+		set {_slot} to slot loop-integer of {_inv}
+		{_slot} is not air
+		set {{@ID}::%{_key}%::slot::%loop-integer%} to {_slot}
+	loop {_funcKey::*}:
+		set {{@ID}::%{_key}%::func::%loop-value%} to {_funcValue::%loop-index%}
+	return true
+
+
+
+#> Title Form 생성
+#> ${prefix:입력}: [${value:0}]
+function InputBoard_open(p:player, key:text, title:text="", force:boolean=false) :: boolean:
+
+	# Pointer
+	set {_pointer} to "{@ID}.%{_key}%"
+
+	# Titie
+	loop Text_splitWithBracket({_title}, "${", "}" ):
+		add 1 to {_i}
+		if loop-text match "\$\{[^}]+\}":
+			set {_split::*} to ( subtext of loop-text from 3 to (length of loop-text)-1 ) split at ":"
+			set {_name::%{_i}%} to {_split::2}
+			set {_pattern::%{_i}%} to "${%{_split::1}%}"
+		else:
+			set {_name::%{_i}%} to loop-text
+			set {_pattern::%{_i}%} to loop-text
+	set {_name} to ( join {_name::*} ) otherwise ""
+	set {_pattern} to join {_pattern::*}
+
+	# Inventory
+	set {_inv} to metadata {_pointer} of {_p}
+	if {_inv} is set:
+		{_force} is false
+		set {_skip} to true
+	if {_skip} is not true:
+		set {_type} to {{@ID}::%{_key}%::type}
+		if {_type} is chest inventory:
+			set {_rows} to {{@ID}::%{_key}%::rows}
+			set {_inv} to chest inventory with {_rows} rows named {_name}
+		else:
+			set {_inv} to fxinputBoard_caseInventoryType({_type}) named {_name}
+		loop {{@ID}::%{_key}%::slot::*}:
+			set {_slot} to loop-index parsed as integer
+			set slot {_slot} of {_inv} to loop-value
+		set metadata {_pointer} of {_p} to {_inv}
+
+	# META
+	set {@META.KEY} to {_key}
+	set {@META.POINTER} to {_pointer}
+	set {@META.PATTERN} to {_pattern} if {_pattern} is set
+
+	open {_inv} to {_p}
+	return true
+
+#> @invisible
+function fxinputBoard_caseInventoryType(invType:inventory type) :: inventory type:
+	return {_invType}
+
+
+
+#> @param name 이름
+#> @param option 로어= Text, 커스텀 모델 데이터 = Integer
+#> @return 
+function InputBoard_tooltip(name:text, option::1:object="<null>", option::2:object="<null>") :: item:
+	set {_i} to {@BLANK} named "&r%{_name}%"
+	set {_option::*} to {_option::*} where [input is not "<null>"]
+	set {_modelID} to ( first element of ( {_option::*} where [input is integer] ) ) otherwise {@BLANK.ID}
+	set custom model data of {_i} to {_modelID}
+	set {_lore} to ( first element of ( {_option::*} where [input is text] ) )
+	set lore of {_i} to {_lore} if {_lore} is set
+	return {_i}
+
+
+
+function InputBoard_CHAR(char:text) :: text:
+	return join "CHAR", {_char} with "."
+function InputBoard_INT(int:integer) :: text:
+	return join "INT", "%{_int}%" with "."
+function InputBoard_FUNC(name:text) :: text:
+	return join "FUNC", {_name} with "."
+function InputBoard_MATH(name:text) :: text:
+	return join "MATH", {_name} with "."
+function InputBoard_CMD(cmd:text) :: text:
+	return join "CMD", {_cmd} with "."
+
+
+
+# ==================================================
+
+
+
+on inventory click with priority lowest:
+	set {_p} to player
+	set {_pointer} to {@META.POINTER}
+	open inventory is metadata {_pointer} of {_p}
+	delete {@META.RESULT}
+
+	# Input
+	set {_key} to {@META.KEY}
+	set {_index} to index of clicked slot
+	set {_func} to {{@ID}::%{_key}%::func::%{_index}%}
+	{_func} is set
+
+	set {_input::*} to Text_splitInHalf({_func}, ".")
+	if {_input::1} is "CMD":
+		ExecuteCommandAsOp({_p}, {_input::2})
+		set {@META.INPUT} to {_input::2}
+
+	else:
+		# Pattern
+		set {_pattern} to {@META.PATTERN}
+		loop Text_splitWithBracket({_pattern}, "${", "}"):
+			add 1 to {_i}
+			if loop-text is "${prefix}":
+				set {_prefixIndex} to {_i}
+			else if loop-text is "${value}":
+				set {_valueIndex} to {_i}
+			else:
+				set {_spliter::%{_i}%} to loop-text
+		delete {_i}
+		set {_pattern::*} to Text_splitWithWord((name of open inventory), {_spliter::*})
+		set {_prefix} to {_pattern::%{_prefixIndex}%}
+		set {_value} to {_pattern::%{_valueIndex}%}
+
+		# Character
+		if {_input::1} is "CHAR":
+			set {_value} to join {_value}, {_input::2}
+			set {@META.INPUT} to {_input::2}
+
+		# Integer
+		else if {_input::1} is "INT":
+			set {_value} to join {_value}, {_input::2}
+			set {@META.INPUT} to {_input::2} parsed as integer
+
+		# Function
+		else if {_input::1} is "FUNC":
+
+			# Close
+			if {_input::2} is "{@FUNC.CLOSE}":
+				set {@META.CLOSER} to true
+
+			# Reset
+			else if {_input::2} is "{@FUNC.RESET}":
+				set {_value} to ""
+
+			# Back Space
+			else if {_input::2} is "{@FUNC.BACK_SPACE}":
+				set {_value} to first length of {_value} - 1 character of {_value}
+
+			# Enter
+			else if {_input::2} is "{@FUNC.ENTER}":
+				set {@META.CLOSER} to true
+				set {_result} to {_value}
+				set {_result} to {_result} parsed as number if Text_isNumber( {_result} ) is true
+				set {@META.RESULT} to {_result}
+
+			# Calculate
+			else if {_input::2} is "{@FUNC.CALCULATE}":
+				if Text_isNumber( {_value} ) is true:
+					set {_calculate} to {_value} parsed as number
+				else:
+					set {_calculate} to first element of Calculater( {_value} )
+					set {_value} to Number_toText( {_calculate}, 12 )
+				set {@META.RESULT} to {_calculate}
+
+			set {@META.INPUT} to {_input::2}
+
+		# Math
+		else if {_input::1} is "MATH":
+			set {_formula::*} to fxCalculater_split( {_value} )
+			set {_firmulaSize} to number of {_formula::*}
+			set {_stack} to 0
+			loop integers from {_firmulaSize} to 1:
+				set {_f} to {_formula::%loop-integer%}
+				if {_f} is ")":
+					add 1 to {_stack}
+				if {_f} is "(":
+					remove 1 from {_stack}
+				if {_stack} >= 0:
+					add {_f} to {_last_value::*}
+					delete {_stack} if {_stack} is 0
+				else:
+					add {_f} to {_rest_value::*}
+			set {_rest_value::*} to reversed {_rest_value::*}
+			set {_rest_value} to join {_rest_value::*}
+			set {_last_value::*} to reversed {_last_value::*}
+			set {_last_value} to join {_last_value::*}
+			set {_value} to join {_rest_value}, {_input::2}, "[", {_last_value}, "]"
+			set {@META.INPUT} to {_input::2}
+	
+	set {_pattern::%{_prefixIndex}%} to {_prefix}
+	set {_pattern::%{_valueIndex}%} to {_value}
+	set name of open inventory to join {_pattern::*}
+	set metadata {_pointer} of {_p} to open inventory
+
+
+on inventory click with priority highest:
+	set {_p} to player
+	set {_pointer} to {@META.POINTER}
+	open inventory is metadata {_pointer} of {_p}
+	cancel event
+
+	delete {@META.INPUT}
+	delete {@META.RESULT}
+	# Closer
+	if {@META.CLOSER} is true:
+		close inventory of {_p}
+		delete {@META.CLOSER}
+		delete {@META.KEY}
+		delete {@META.POINTER}
+		delete {@META.PATTERN}
+		delete metadata {_pointer} of {_p}
+
+
+
+# ==================================================
+
+
+
+options:
+	CALCULATOR.LAYER.ID: 1002
+	CALCULATOR.COVER.ID: 2002
+	NATURAL.LAYER.ID: 1001
+	NATURAL.COVER.ID: 2001
+
+
+
+on skript stop:
+	delete {{@ID}::*}
+
+on load:
+	wait 1 tick
+
+	# Calculator
+	set {_key} to "{@ID}.calculator"
+	set {_inv} to chest inventory with 4 rows named ""
+	set slot 0 of {_inv} to InputBoard_tooltip("{@LANG.KR.CLOSE}", {@CALCULATOR.LAYER.ID})
+	set slot 8 of {_inv} to InputBoard_tooltip("{@LANG.KR.BACK_SPACE}")
+	set slot 9 of {_inv} to InputBoard_tooltip("{@LANG.KR.RESET}")
+	set slot 35 of {_inv} to InputBoard_tooltip("{@LANG.KR.CALCULATE}", {@CALCULATOR.COVER.ID})
+
+	set {_func::0} to InputBoard_FUNC("{@FUNC.CLOSE}")
+	set {_func::3} to InputBoard_CHAR("-")
+	set {_func::4} to InputBoard_CHAR("+")
+	set {_func::5} to InputBoard_INT(7)
+	set {_func::6} to InputBoard_INT(8)
+	set {_func::7} to InputBoard_INT(9)
+	set {_func::8} to InputBoard_FUNC("{@FUNC.BACK_SPACE}")
+
+	set {_func::9} to InputBoard_FUNC("{@FUNC.RESET}")
+	set {_func::12} to InputBoard_CHAR("/")
+	set {_func::13} to InputBoard_CHAR("*")
+	set {_func::14} to InputBoard_INT(4)
+	set {_func::15} to InputBoard_INT(5)
+	set {_func::16} to InputBoard_INT(6)
+
+	set {_func::18} to InputBoard_MATH("SIN")
+	set {_func::19} to InputBoard_MATH("COS")
+	set {_func::20} to InputBoard_MATH("TAN")
+	set {_func::21} to InputBoard_MATH("SQRT")
+	set {_func::22} to InputBoard_CHAR("^")
+	set {_func::23} to InputBoard_INT(1)
+	set {_func::24} to InputBoard_INT(2)
+	set {_func::25} to InputBoard_INT(3)
+	
+	set {_func::27} to InputBoard_MATH("FLOOR")
+	set {_func::28} to InputBoard_MATH("ROUND")
+	set {_func::29} to InputBoard_MATH("CEIL")
+	set {_func::30} to InputBoard_MATH("ABS")
+	set {_func::31} to InputBoard_CHAR("(")
+	set {_func::32} to InputBoard_CHAR(")")
+	set {_func::33} to InputBoard_INT(0)
+	set {_func::34} to InputBoard_CHAR(".")
+	set {_func::35} to InputBoard_FUNC("{@FUNC.CALCULATE}")
+	InputBoard_register({_key}, {_inv}, indexes of {_func::*}, {_func::*})
+	delete {_key}, {_inv}, {_func::*}
+
+	# Natural
+	set {_key} to "{@ID}.natural"
+	set {_inv} to chest inventory with 2 rows named ""
+	set slot 0 of {_inv} to InputBoard_tooltip("{@LANG.KR.CLOSE}", {@NATURAL.LAYER.ID})
+	set slot 8 of {_inv} to InputBoard_tooltip("{@LANG.KR.BACK_SPACE}")
+	set slot 9 of {_inv} to InputBoard_tooltip("{@LANG.KR.RESET}")
+	set slot 17 of {_inv} to InputBoard_tooltip("{@LANG.KR.ENTER}", {@NATURAL.COVER.ID})
+
+	set {_func::0} to InputBoard_FUNC("{@FUNC.CLOSE}")
+	set {_func::2} to InputBoard_INT(0)
+	set {_func::3} to InputBoard_INT(1)
+	set {_func::4} to InputBoard_INT(2)
+	set {_func::5} to InputBoard_INT(3)
+	set {_func::6} to InputBoard_INT(4)
+	set {_func::8} to InputBoard_FUNC("{@FUNC.BACK_SPACE}")
+
+	set {_func::9} to InputBoard_FUNC("{@FUNC.RESET}")
+	set {_func::11} to InputBoard_INT(5)
+	set {_func::12} to InputBoard_INT(6)
+	set {_func::13} to InputBoard_INT(7)
+	set {_func::14} to InputBoard_INT(8)
+	set {_func::15} to InputBoard_INT(9)
+	set {_func::17} to InputBoard_FUNC("{@FUNC.ENTER}")
+	InputBoard_register({_key}, {_inv}, indexes of {_func::*}, {_func::*})
+	delete {_key}, {_inv}, {_func::*}
+
+function InputBoard_openNatural(p:player):
+	InputBoard_open({_p}, "{@ID}.natural", "${prefix:입력}: ${value}")
+
+function InputBoard_openCalculator(p:player):
+	InputBoard_open({_p}, "{@ID}.calculator", "${prefix:입력}: ${value}")
+
+
+
+# ==================================================
+
+
+
+on inventory click:
+	set {_key} to InputBoard_getKey(player)
+	{_key} match "^{@ID}\..*$"
+	set {_input} to InputBoard_getInput(player)
+	set {_result} to InputBoard_getResult(player)
+	Debug_print(script, "{_key}=%{_key}%, {_input}=%{_input}%, {_result}=%{_result}%")
+
+
+
+# command /test.gui.register:
+# 	trigger:
+# 		set {_key} to "{@ID}.menu"
+# 		set {_inv} to hopper inventory named ""
+# 		set slot 2 of {_inv} to stone
+# 		set {_func::2} to InputBoard_CMD("/say ""hello""")
+# 		send InputBoard_register({_key}, {_inv}, indexes of {_func::*}, {_func::*}) to console
+# 		List_print("{@ID}::%{_key}%")
+
+# command /test.gui.open:
+# 	trigger:
+# 		set {_key} to "{@ID}.menu"
+# 		InputBoard_open(player, {_key}, "이름 지정 인벤토리", true)

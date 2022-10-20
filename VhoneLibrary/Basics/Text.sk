@@ -1,0 +1,354 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+
+# 210116
+#  - 생성 ExprSplit.sk
+# 210813
+#  - 추가 ExprSplitWithWord
+# 220302
+#  - 생성 ExprText.sk
+# 220412
+#  - 추가 ExprTextRepeat(), ExprTextInBracket(), ExprTextIndexOf(), ExprTextAt()
+# 220416
+#  - 병합 ExprText.sk
+#  - 추가 Text_IsInteger(), Text_isNumber()
+# 220705
+#  - 병합 ExprSplit.sk
+#  - 추가 Text_splitWithBracket()
+
+
+# ==================================================
+
+
+
+#> 문자열에 있는 문자의 개수를 반환합니다.
+#> @param text 문자열
+#> @param char 찾을 문자
+#> @param max_loop 최대 반복횟수
+#> @return 검색된 갯수
+function Text_amount(text:text, char:text, max_loop:integer=1000) :: integer:
+	set {_length} to length of {_char}
+	set {_count} to -1
+	do while {_index} >= 0:
+		add 1 to {_count}
+		set {_index} to index of {_char} in {_text}
+		set {_text} to subtext of {_text} from {_index} + {_length} to length of {_text}
+	return {_count}
+
+
+
+#> 지정된 횟수만큼 반복 생성한 문자를 반환합니다.
+#> @param char 반복할 문자
+#> @param repeat 반복할 횟수
+#> @return 생성된 문자
+function Text_repeat(char:text, repeat:integer) :: text:
+	loop {_repeat} times:
+		add {_char} to {_char::*}
+	return join {_char::*}
+
+
+
+#> 시작 위치를 지정하여 문자열을 찾습니다.
+#> @param text 문자열
+#> @param char 찾을 문자열
+#> @param index 시작 위치
+#> @return 찾은 위치
+function Text_indexOf(text:text, char:text, index:integer=0) :: integer:
+	return -1 if {_index} < 0
+	set {_subtext} to last length of {_text} - {_index} character of {_text}
+	return -1 if {_subtext} is not set
+	set {_i} to index of {_char} in {_subtext}
+	return {_i} if {_i} < 0
+	return round( {_index} + {_i} ) - 1
+
+
+
+#> 지정된 위치에서 지정된 길이만큼의 문자를 반환합니다.
+#> @param text 문자열
+#> @param index 시작 위치
+#> @param length 문자열 길이
+#> @return 찾은 문자열
+function Text_at(text:text, index:integer=0, length:integer=1) :: text:
+	set {_size} to length of {_text}
+	set {_index} to {_size} if {_index} > {_size}
+	set {_offset} to {_size} - {_index}
+	set {_offset} to 0 if {_offset} < 0
+	set {_length} to {_offset} if {_length} > {_offset}
+	set {_subtext} to subtext of {_text} from {_index} + 1 to {_index} + {_length}
+	return {_subtext}
+
+
+
+# #> @param text 
+# #> @param from from부터 to까지
+# #> @param to to가 음수면 뒤에서부터
+# #> @return 
+# function Text_slice(text:text, from:integer, to:integer) :: text:
+# 	send "A" to console
+
+#> 좌우 공백 제거
+#> option = 왼쪽:left, 오른쪽:right, 양쪽:null
+function Text_trim(text:text, option:direction=down) :: text:
+	set {_char::*} to {_text} split at "" where [ input is not "" ]
+	set {_index::*} to indexes of {_char::*}
+	delete {_option} if {_option} is not left or right
+	if {_option} is not right:
+		loop {_index::*}:
+			if {_char::%loop-value%} is " ":
+				delete {_char::%loop-value%}
+			else:
+				stop loop
+	if {_option} is not left:
+		loop reversed {_index::*}:
+			if {_char::%loop-value%} is " ":
+				delete {_char::%loop-value%}
+			else:
+				stop loop
+	return join {_char::*} otherwise ""
+
+
+
+#> 가장 앞에 있는 괄호 쌍을 찾아 괄호 안의 문자를 반환합니다.
+#> @param text 문자열
+#> @param opener 여는 괄호
+#> @param closer 닫는 괄호
+#> @return 괄호 안 문자열
+function Text_inBracket(text:text, opener:text, closer:text="") :: text:
+	set {_closer} to {_opener} if {_closer} is ""
+	set {_first}, {_index}, {_last} to Text_indexOf( {_text}, {_opener} )
+	stop if {_first} < 0
+	while true is true:
+		delete {_continue}
+		set {_last} to Text_indexOf( {_text}, {_closer}, round( {_last} + 1 ) )
+		if {_last} < 0:
+			set {_last} to length of {_text}
+			stop loop
+		if {_opener} is {_closer}:
+			Text_at( {_text}, round( {_last} + 1 ) ) is {_opener}
+			set {_index}, {_last} to {_last} + 1
+			set {_continue} to true
+		{_continue} is not set
+		set {_subtext} to subtext of {_text} from {_index} + 2 and {_last}
+		stop loop if {_subtext} is not set
+		set {_i} to first index of {_opener} in {_subtext}
+		stop loop if {_i} < 0
+		add {_i} to {_index}	
+	return subtext of {_text} from {_first} + 2 and {_last}
+
+
+
+#> 문자열 중간에 다른 문자를 삽입합니다.
+#> @param text 문자열
+#> @param insert 삽입할 문자열
+#> @param index 삽입할 위치
+#> @return 수정된 문자열
+function Text_insert(text:text, insert:text, index:integer) :: text:
+	set {_first} to first {_index} - 1 character of {_text}
+	set {_last} to last length of {_text} - length of {_insert} - {_index} + 1 character of {_text}
+	return first length of {_text} character of join {_first} and {_insert}, {_last}
+
+
+
+#> 글자가 정수인지 확인합니다.
+#> @return 정수면 true, 아니면 false
+function Text_isInteger(value:text) :: boolean:
+	return true if {_value} match "[-+]?[0-9]+"
+	return false
+
+
+
+#> 글자가 유리수인지 확인합니다.
+#> @return 유리수면 true, 아니면 false
+function Text_isNumber(value:text) :: boolean:
+	return true if {_value} match "[-+]?[0-9]+(\.[0-9]+)?"
+	return false
+
+
+
+#> 글자를 문자로 나누어 줍니다.
+#> 공백문자를 제외한 글자가 반환됩니다.
+#> @param t 글자
+#> @param d 문자
+#> @return 나누어진 글자 리스트
+function Text_split(t:text, d:text="") :: texts:
+	return ( {_t} split at {_d} ) where [ input is not "" ]
+
+
+
+#> 문자를 기준으로 글자를 절반으로 나눕니다.
+#> first가 true인 경우 앞부터, false인 경우 뒤부터 문자를 찾습니다.
+#> @param t 글자
+#> @param d 문자
+#> @param first 앞에서 부터
+#> @return 나누어진 글자 리스트
+function Text_splitInHalf(t:text, d:text, first:boolean=true) :: texts:
+	return {_t} if {_t} don't contain {_d}
+	if {_first} is true:
+		set {_index} to first index of {_d} in {_t}
+	else:
+		set {_index} to last index of {_d} in {_t}
+	set {_split::1} to ( subtext of {_t} from 1 to {_index} - 1 ) otherwise ""
+	set {_split::2} to ( subtext of {_t} from ( {_index} + length of {_d} ) to length of {_t} ) otherwise ""
+	return {_split::*}
+
+
+
+#> 문장에서 단어를 찾아 나누어 반환합니다.
+#> 나누어진 문장은 단어를 포함합니다.
+#> @param t 문장
+#> @param d 단어
+#> @return 나누어진 글자 리스트
+#> ***
+#> ```
+#> > set {_text} to "<tool> 단어의 흐름에서 <location>을 찾고 <tool>을 나누는 이분 알고리즘"
+#> > set {_keyword::*} to "<tool>" and "<location>"
+#> > loop Text_splitWithWord( {_text}, {_keyword::*} ):
+#> >	send loop-text to console
+#> > # <tool>| 단어의 흐름에서 |<location>|을 찾고 |<tool>|을 나누는 이분 알고리즘
+#> ```
+function Text_splitWithWord(t:text, d:texts) :: texts:
+	loop {_d::*}:
+		set {_lengthDivide::%loop-index%} to length of loop-value
+		set {_charDivide::%loop-index%::*} to split loop-value at "" where [input is not ""]
+	set {_length} to length of {_t}
+	set {_char::*} to split {_t} at "" where [input is not ""]
+	set {_i} to 0
+	set {_pos} to 1
+	while {_i} < {_length}:
+		add 1 to {_i}
+		loop {_d::*}:
+			{_charDivide::%loop-index%::1} is {_char::%{_i}%}
+			set {_match} to 1
+			if {_lengthDivide::%loop-index%} > 1:
+				loop integers from 2 to {_lengthDivide::%loop-index%}:
+					{_char::%{_i}+loop-integer - 1%} is {_charDivide::%loop-index%::%loop-integer%}
+					add 1 to {_match}
+			if {_match} is {_lengthDivide::%loop-index%}:
+				add ( subtext of {_t} from {_pos} to {_i} - 1 ) otherwise "" to {_split::*}
+				add loop-value to {_split::*}
+				add {_match}-1 to {_i}
+				set {_pos} to {_i}+1
+	add subtext of {_t} from {_pos} to length of {_t} to {_split::*} if {_pos} <= {_length}
+	return {_split::*}
+
+
+
+#> 글자 길이 리스트에 맞추어 글자를 나눈다
+#> 글자가 글자 길이보다 부족하거나 많아도 길이만 큼 나눈 후 반환한다.
+#> @param text 글자
+#> @param length 글자 길이
+#> @return 나누어진 글자
+function Text_splitWithLength(text:text, lengths:integers) :: texts:
+	loop {_lengths::*}:
+		clear {_text}
+		set {_text} to first loop-value character of {_text}
+		stop loop if {_text} is not set
+		add {_text} to {_result::*}
+		set {_text} to ( last ( length of {_text} - loop-value ) character of {_text} ) otherwise ""
+	if {_text} is not "":
+		add {_text} to {_result::*}
+	return {_result::*}
+
+
+
+#> 글자를 너비만큼 나누어 반환합니다.
+#> @param text 글자
+#> @param width 너비
+#> @return 나누어진 글자
+function Text_splitWithWidth(text:text, width:integer) :: texts:
+	set {_char::*} to Text_split(Text_trim({_text}))
+	set {_i} to 1
+	while {_i} <= number of {_char::*}:
+		if {_length} is not set: # 앞 공백 제거
+			{_char::%{_i}%} is " "
+			add 1 to {_i}
+		if {_char::%{_i}%} match "[ㄱ-ㅎ가-힣]": # 한글은 2
+			set {_size} to 2
+		else: # 나머진 1
+			set {_size} to 1
+		if {_size} + {_length} > {_width}: # 폭보다 크면 다음 줄
+			set {_length} to {_width}
+		else: # 폭보다 작으면 반복
+			add {_size} to {_length}
+			add {_char::%{_i}%} to {_line::*}
+			add 1 to {_i}
+		if {_length} >= {_width}: # 폭과 같거나 크면 다음 줄
+			add join {_line::*} to {_lines::*}
+			delete {_length}, {_line::*}
+	add join {_line::*} to {_lines::*} if {_line::*} is set
+	return {_lines::*}
+
+
+
+#> 브라켓으로 글자를 나눕니다.
+#> @param text 문자
+#> @param opener 오픈 브라켓
+#> @param closer 브라켓
+#> @return 나누어진 글자
+#> ***
+#> ```
+#> command /aa:
+#> set {_text} to "${1:플레이어}는(는) ${2:아이템}을(를) 들고 있습니다.
+#> ${3:글자}" set {_split::*} to Text_splitWithBracket( {_text}, "${", "}" )
+#> |<tool>| 단어의 흐름에서 |<location>|을 찾고 |<tool>|을 나누는 이분 알고리즘
+#> ```
+function Text_splitWithBracket(text:text, opener:text, closer:text) :: texts:
+	set {_opener::*} to split {_opener} at "" where [input is not ""]
+	set {_openerLength} to length of {_opener}
+	set {_closer::*} to split {_closer} at "" where [input is not ""]
+	set {_closerLength} to length of {_closer}
+	set {_char::*} to split {_text} at "" where [input is not ""]
+	set {_length} to length of {_text}
+	set {_i}, {_stack} to 0
+	set {_pos} to 1
+	while {_i} < {_length}:
+		add 1 to {_i}
+		if {_char::%{_i}%} is {_opener::1}:
+			set {_match} to 1
+			if {_openerLength} > 1:
+				loop integers from 2 to {_openerLength}:
+					{_char::%{_i}+loop-integer - 1%} is {_opener::%loop-integer%}
+					add 1 to {_match}
+			if {_match} is {_openerLength}:
+				add 1 to {_stack}
+				if {_stack} is 1:
+					set {_start} to {_i}
+				add {_match}-1 to {_i}
+		if {_stack} > 0:
+			if {_char::%{_i}%} is {_closer::1}:
+				set {_match} to 1
+				if {_closerLength} > 1:
+					loop integers from 2 to {_closerLength}:
+						{_char::%{_i}+loop-integer%} is {_closer::%loop-integer%}
+						add 1 to {_match}
+				if {_match} is {_closerLength}:
+					remove 1 from {_stack}
+					if {_stack} is 0:
+						set {_end} to {_i}
+					add {_match}-1 to {_i}
+		if {_start}, {_end} is set:
+			if {_pos} <= {_start}-1:
+				add subtext of {_text} from {_pos} to {_start} - 1 to {_split::*}
+			add subtext of {_text} from {_start} to {_end} to {_split::*}
+			set {_pos} to {_end} + 1
+			delete {_start}, {_end}
+	if {_pos} <= {_length}:
+		add subtext of {_text} from {_pos} to {_length} to {_split::*}
+	return {_split::*}
+
+
+
+#> 입력한 글자를 format의 형태로 바꿉니다.
+#> left_align이 true인 경우 format의 왼쪽에 맞추어 정렬됩니다.
+#> @param format 글자 폼
+#> @param text 입력한 글자
+#> @param left_align 왼쪽 정렬
+#> @return 글자 폼이 적용된 문자열
+function Text_formatter(format:text, text:text, left_align:boolean=false) :: text:
+	if {_left_align} is false:
+		set {_prefix} to first ( length of {_format} - length of {_text} ) characters of {_format}
+		return join {_prefix} and {_text}
+	else:
+		set {_suffix} to last ( length of {_format} - length of {_text} ) characters of {_format}
+		return join {_text} and {_suffix}

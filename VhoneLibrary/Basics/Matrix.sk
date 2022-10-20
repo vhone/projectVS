@@ -1,0 +1,176 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+
+# 220727
+#  - 생성
+
+
+
+# ==================================================
+# 행렬의 정의
+# set {_index} to "MATRIX:3:3"
+# set {_elements::*} = 1, 2, 3, 4, 5, 6, 7, 8, 9
+
+options:
+	ID: MATRIX
+	DEBUG: true
+
+
+
+#> @param index 행렬 키
+#> @param debug 디버깅 출력 여부
+#> @return 행렬이 맞으면 true, 아니면 false
+function Matrix_isMatrix(key:string, debug:boolean=false) :: boolean:
+	Debug_record(script, "Matrix_isMatrix") if {@DEBUG} is true
+	if {_key} match "{@ID}\:\d+\:\d+":
+		set {_result} to true 
+	else:
+		Error( script, """%{_key}%"" is not key of matrix", Debug_stack() ) if {_debug} is true
+		set {_result} to false 
+	Debug_close() if {@DEBUG} is true
+	return {_result}
+
+
+
+#> @param row 행 개수
+#> @param column 열 개수
+#> @param elements 행렬 데이터
+#> @return 행렬 데이터
+function Matrix_create(row:integer, column:integer, elements::numbers) :: objects:
+	return "{@ID}:%{_row}%:%{_column}%" and {_elements::*}
+
+
+
+#> @param data 행렬 데이터
+#> @param recipients 송신자(player or console)
+function Matrix_print(data:objects, recipients:senders):
+	Debug_record(script, "Matrix_print") if {@DEBUG} is true
+	if Matrix_isMatrix({_data::1}, true) is false:
+		Debug_close() if {@DEBUG} is true
+		stop
+	set {_size::*} to {_data::1} parsed as "{@ID}\:%integer%\:%integer%"
+	delete {_data::1}
+	set {_elements::*} to {_data::*}
+	loop integers from 0 to {_size::1} - 1: # row
+		set {_row} to loop-integer
+		loop integers from 0 to {_size::2} - 1: # column
+			set {_column} to loop-integer-2
+			set {_i} to {_column} * {_size::2} + {_row} + 1
+			add "%{_elements::%{_i}%}%" to {_line::*}
+		add join {_line::*} with " " to {_lines::*}
+		delete {_line::*}
+	send {_lines::*} to {_recipients::*}
+	Debug_close() if {@DEBUG} is true
+
+
+
+#> @param data 행렬 데이터
+#> @param row 행 번호
+#> @return 행 값
+function Matrix_row(data:objects, row:integer) :: objects:
+	Debug_record(script, "Matrix_row") if {@DEBUG} is true
+	if Matrix_isMatrix({_data::1}, true) is false:
+		Debug_close() if {@DEBUG} is true
+		stop
+	set {_size::*} to {_data::1} parsed as "{@ID}\:%integer%\:%integer%"
+	delete {_data::1}
+	set {_elements::*} to {_data::*}
+	loop {_size::1} times:
+		set {_i} to ( loop-number - 1 ) * {_size::2} + {_row}
+		add {_elements::%{_i}%} to {_result::*}
+	Debug_close() if {@DEBUG} is true
+	return {_result::*}
+
+
+
+#> @param data 행렬 데이터
+#> @param column 열 번호
+#> @return 열 값
+function Matrix_column(data:objects, column:integer) :: objects:
+	Debug_record(script, "Matrix_column") if {@DEBUG} is true
+	if Matrix_isMatrix({_data::1}, true) is false:
+		Debug_close() if {@DEBUG} is true
+		stop
+	set {_size::*} to {_data::1} parsed as "{@ID}\:%integer%\:%integer%"
+	delete {_data::1}
+	set {_elements::*} to {_data::*}
+	set {_start} to ( {_column} - 1 ) * {_size::1}
+	loop integers from {_start} + 1 to {_start} + {_size::2}:
+		add {_elements::%loop-integer%} to {_result::*}
+	Debug_close() if {@DEBUG} is true
+	return {_result::*}
+
+
+
+#> @param data 행렬 데이터
+#> @param row 행 번호
+#> @param column 열 번호
+#> @return 값
+function Matrix_value(data:objects, row:integer, column:integer) :: object:
+	Debug_record(script, "Matrix_value") if {@DEBUG} is true
+	if Matrix_isMatrix({_data::1}, true) is false:
+		Debug_close() if {@DEBUG} is true
+		stop
+	set {_size::*} to {_data::1} parsed as "{@ID}\:%integer%\:%integer%"
+	delete {_data::1}
+	set {_elements::*} to {_data::*}
+	set {_i} to ( {_column} - 1 ) * {_size::1} + {_row}
+	Debug_close() if {@DEBUG} is true
+	return {_elements::%{_i}%}
+
+# command /{@ID}.basic:
+# 	trigger:
+# 		set {_matrix::*} to Matrix_create( 3, 3, (1, 2, 3, 4, 5, 6, 7, 8, 9) )
+# 		Matrix_print({_matrix::*}, (player and console))
+# 		send "Matrix_row(2)=%Matrix_row({_matrix::*}, 2)%"
+# 		send "Matrix_column(3)=%Matrix_column({_matrix::*}, 3)%"
+# 		send "Matrix_value(2, 3)=%Matrix_value({_matrix::*}, 2, 3)%"
+
+
+
+#> @param data_a 행렬 데이터
+#> @param data_b 행렬 데이터
+#> @return 곱해진 행렬 데이터
+function Matrix_product(data_a:objects, data_b:objects) :: objects:
+	Debug_record(script, "Matrix_product") if {@DEBUG} is true
+	loop "a" and "b":
+		set {_ch} to loop-text
+		if Matrix_isMatrix({_data_%{_ch}%::1}, true) is false:
+			Debug_close() if {@DEBUG} is true
+			stop
+		set {_size_%{_ch}%::*} to {_data_%{_ch}%::1} parsed as "{@ID}\:%integer%\:%integer%"
+		delete {_data_%{_ch}%::1}
+		set {_elements_%{_ch}%::*} to {_data_%{_ch}%::*}
+
+		loop integers from 0 to {_size_%{_ch}%::1} - 1: # row
+			set {_row} to loop-integer
+			loop integers from 0 to {_size_%{_ch}%::2} - 1: # column
+				set {_column} to loop-integer-2
+				set {_i} to {_column} * {_size_%{_ch}%::2} + {_row} + 1
+				set {_matrix_%{_ch}%::%{_row}%::%{_column}%} to {_elements_%{_ch}%::%{_i}%}
+	if {_size_a::2} is not {_size_b::1}:
+		Error(script, "The number of columns of matrix A and rows of matrix B are not equal", Debug_stack() )
+		Debug_close() if {@DEBUG} is true
+		stop
+	set {_loop::*} to {_size_a::1}-1, {_size_b::2}-1, {_size_a::2}-1
+	loop integers from 0 to {_loop::1}:
+		set {_a} to loop-integer
+		loop integers from 0 to {_loop::2}: 
+			set {_b} to loop-integer-2
+			loop integers from 0 to {_loop::3}:
+				set {_i} to loop-integer-3
+				set {_k} to {_b} * {_size_b::2} + {_a}
+				add {_matrix_a::%{_a}%::%{_i}%} * {_matrix_b::%{_i}%::%{_b}%} to {_elements_c::%{_k}%}
+	Debug_close() if {@DEBUG} is true
+	return "{@ID}:%{_size_a::1}%:%{_size_b::2}%" and {_elements_c::*}
+
+# command /{@ID}.product:
+# 	trigger:
+# 		Debug_clear()
+# 		set {_matrix_a::*} to Matrix_create( 3, 3, (1, 2, 3, 4, 5, 6, 7, 8, 9) )
+# 		Matrix_print({_matrix_a::*}, player)
+# 		set {_matrix_b::*} to Matrix_create( 3, 3, (1, 2, 3, 4, 5, 6, 7, 8, 9) )
+# 		Matrix_print({_matrix_b::*}, player)
+# 		set {_matrix_c::*} to Matrix_product({_matrix_a::*}, {_matrix_b::*})
+# 		Matrix_print({_matrix_c::*}, player)

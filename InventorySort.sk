@@ -1,0 +1,97 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+
+# 210306 생성
+
+# 빈슬롯을 더블클릭하면 클릭한 인벤토리가 정렬됨
+
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+
+# ============================== Options
+
+options:
+	ID: InventorySolt
+
+on load:
+	# suppress conflict warning (Skript2.6.1부터 제거됨)
+	suppress conjunction warning
+	# suppress variable save warning
+	# suppress starting expression warning
+	
+# ============================== Command
+		
+command /{@ID}.sort.Hotbar <player=%player%>:
+	permission: {@ID}.sort.Hotbar
+	trigger:
+		fxInventorySort( inventory of arg-player , integers from 0 to 8 )
+	
+command /{@ID}.sort.Container <player=%player%>:
+	permission: {@ID}.sort.Container
+	trigger:
+		fxInventorySort( inventory of arg-player , integers from 9 to 35 )
+
+# ============================== inner
+
+on inventory click with priority high:
+	click type is double click using mouse
+	inventory action is nothing
+	if type of clicked inventory is player inventory:
+		if index of event-slot < 9:
+			fxInventorySort( inventory of player , integers from 0 to 8 )
+		else if index of event-slot < 36:
+			fxInventorySort( inventory of player , integers from 9 to 35 )
+	else if type of clicked inventory is chest inventory:
+		holder of clicked inventory is set
+		fxInventorySort( clicked inventory , integers from 0 to slots of clicked inventory - 1 )
+
+#> @invisible
+function fxInventorySort(inv:inventory,slot:integers):
+	loop {_slot::*}:
+		set {_items::%loop-value%} to slot loop-value of {_inv}
+	set {_merge::*} to fxInventorySort_merge( {_items::*} )
+	set {_sort::*} to fxInventorySort_sort( {_merge::*} )
+	
+	set {_index} to 1
+	loop {_sort::*}:
+		set {_i} to loop-value
+		while {_i} is set:
+			if item amount of {_i} > max stack of {_i}:
+				set slot {_slot::%{_index}%} of {_inv} to ( max stack of {_i} ) of {_i}
+				set {_i} to ( item amount of {_i} - max stack of {_i} ) of {_i}
+			else:
+				set slot {_slot::%{_index}%} of {_inv} to {_i}
+				clear {_i}
+			delete {_slot::%{_index}%}
+			add 1 to {_index}
+	loop {_slot::*}:
+		clear slot loop-value of {_inv}
+
+#> @invisible
+function fxInventorySort_sort(i:items) :: items:
+	loop {_i::*}:
+		loop-value is not air
+		set {_name} to minecraft name of loop-value
+		add loop-value to {_sort::%{_name}%::*}
+	loop indexes of {_sort::*}:
+		loop {_sort::%loop-text%::*}:
+			add loop-value-2 to {_item::*}
+	return {_item::*}
+
+#> @invisible
+function fxInventorySort_merge(i:items) :: items:
+	loop {_i::*}:
+		loop-value is not air
+		clear {_continue}, {_index}
+		loop {_merge::*}:
+			add 1 to {_index}
+			1 of loop-value-1 is 1 of loop-value-2
+			set {_amount::*} to item amount of loop-value-1 and item amount of loop-value-2
+			set {_merge::%{_index}%} to sum( {_amount::*} ) of loop-value-2
+			set {_continue} to true
+			exit loop
+		if {_continue} is not set:
+			add loop-value to {_merge::*}
+	return {_merge::*}

@@ -1,0 +1,52 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+# 배포 : 
+
+# 210301 - 생성
+# 220716
+#  - 파일명 Chunk.sk 변경
+# 220813
+#  - 파일명 Parser.sk 변경
+
+
+
+# ============================== Warning
+
+
+#> Chunk = [ x, y, world ]
+#> Potion Effect = [ potion effect type, tier ]
+#> Enchantment = [ enchantment, tier ]
+#> @param value Chunk or Potion Effect, Enchantment
+#> @return Parsing Data
+function Parser(value:object) :: objects:
+	return "%{_value}%" parsed as "chunk \(%integer%,%integer%\) of %world%" if {_value} is a chunk
+	return "%{_value}%" parsed as "potion effect of %potion effect type% of tier %integer% for %timespan%" if {_value} is a potion effect
+	return "%{_value}%" parsed as "%enchantment% %integer%" if {_value} is a enchantment type
+
+
+
+# #> 청크의 요소를 x, z, world 순으로 반환합니다.
+# #> @param chunk 청크
+# #> @return 1=x, 2=y, 3=world
+# function Parser_Chunk(chunk:chunk) :: objects:
+# 	set {_data::*} to "%{_chunk}%" parsed as "chunk \(%integer%,%integer%\) of %world%"
+# 	return {_data::*}
+
+
+
+# #> 포션 이펙트의 요소를 이펙트 타입, 티어, 시간 순으로 반환합니다
+# #> @param effect 포션 이펙트
+# #> @return 1=포션 이펙트 타입, 2=티어, 3=시간
+# function Parser_potionEffect(effect:potion effect) :: objects:
+# 	set {_data::*} to "%{_effect}%" parsed as "potion effect of %potion effect type% of tier %integer% for %timespan%"
+# 	return {_data::*}
+
+
+
+# #> 인첸트의 요소를 인첸트 타입, 티어 순으로 반환합니다
+# #> @param ench 인첸트 타입
+# #> @return 1=인첸트, 2=티어
+# function Parser_enchantment(ench:enchantment type) :: objects:
+# 	set {_data::*} to "%{_ench}%" parsed as "%enchantment% %integer%"
+# 	return {_data::*}

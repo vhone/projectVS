@@ -1,0 +1,28 @@
+
+
+
+
+#> 플레이어에게 타이틀, 서브타이틀, 액션바 메세지를 보냅니다.
+#> 메세지 타입은 title, subtitle, action_bar 세가지가 있고 각각 한번만 쓰여야 합니다
+#> @param recipients 수신자
+#> @param section 
+#> @param msg
+#> ***
+#> ```
+#> # example
+#> set {_recipients::*} to player
+#> set {_section::*} to "title" and "subtitle", "action_bar"
+#> set {_msg::*} to "타이틀" and "서브타이틀", "엑션바"
+#> Player_sendMessageToScreen( {_recipients::*}, {_section::*}, {_msg::*} )
+#> ```
+#> ***
+function Player_sendMessageToScreen(recipients:players, section:texts="", msg:texts=""):
+	loop {_section::*}:
+		loop-value is "title" or "subtitle", "action_bar"
+		set {_data::%loop-value%} to colored {_msg::%loop-index%} otherwise " "
+		set {_data::%loop-value%} to " " if {_data::%loop-value%} is ""
+	loop "title" and "subtitle":
+		{_data::%loop-text%} is not set
+		set {_data::%loop-text%} to " "
+	send title {_data::title} with subtitle {_data::subtitle} to {_recipients::*} for 40 tick with fade in 0 tick and fade out 20 tick
+	send action bar {_data::action_bar} to {_recipients::*} if {_data::action_bar} is set

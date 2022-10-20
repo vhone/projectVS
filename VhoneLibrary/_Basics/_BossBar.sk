@@ -1,0 +1,342 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+# 배포 : https://www.koreaminecraft.net/scriptqna/1706450
+
+# 220723
+#  - 생성
+
+options:
+	ID: BossBar
+
+import:
+	org.bukkit.Bukkit
+	org.bukkit.boss.BossBar
+	org.bukkit.boss.BarColor # BLUE, GREEN, PINK, PURPLE, RED, WHITE, YELLOW
+	org.bukkit.boss.BarStyle # SEGMENTED_10/12/20/6, SOLID
+	org.bukkit.boss.BarFlag # CREATE_FOG, DARKEN_SKY, PLAY_BOSS_MUSIC
+
+
+
+#> 스크립트 컬러을 받으면 보스바 컬러를 반환
+#> 보스바 컬러를 받으면 스크립트 컬러를 반환
+#> white / blue / green / pink / purple / red / yellow
+#> @param color 스크립트 컬러 or 보스바 컬러
+#> @return 보스바 컬러 or 스크립트 컬러
+function BossBar_color(value:object) :: object:
+	if {_value} is color:
+		return BarColor.WHITE if {_value} is white
+		return BarColor.BLUE if {_value} is blue
+		return BarColor.GREEN if {_value} is green
+		return BarColor.PINK if {_value} is pink
+		return BarColor.PURPLE if {_value} is purple
+		return BarColor.RED if {_value} is red
+		return BarColor.YELLOW if {_value} is yellow
+	if {_value} is instance of BossBar:
+		set {_color} to {_value}.getColor()
+	if {_value} is instance of BarColor:
+		set {_color} to {_value}
+	if {_color} is set:
+		return blue if {_color} is BarColor.BLUE
+		return green if {_color} is BarColor.GREEN
+		return pink if {_color} is BarColor.PINK
+		return purple if {_color} is BarColor.PURPLE
+		return red if {_color} is BarColor.RED
+		return yellow if {_color} is BarColor.YELLOW
+		return white if {_color} is BarColor.WHITE
+
+# command /{@ID}.color:
+# 	trigger:
+# 		set {_barColor} to BossBar_color( red )
+# 		set {_skColor} to BossBar_color( {_barColor} )
+# 		send "{_barColor}=%{_barColor}% / {_skColor} = %{_skColor}%" to console
+
+
+
+#> 세그먼트 개수를 받으면 보스바 세그먼트를 반환
+#> 보스바 세그먼트를 받으면 세그먼트 개수를 반환
+#> 0 / 6 / 10 / 12/ 20
+#> @param value 보스바 세그먼트 or 세그먼트 개수
+#> @return 세그먼트 개수 or 보스바 세그먼트
+function BossBar_segment(value:object) :: object:
+	if {_value} is integer:
+		return BarStyle.SOLID if {_value} < 6
+		return BarStyle.SEGMENTED_6 if {_value} < 10
+		return BarStyle.SEGMENTED_10 if {_value} < 12
+		return BarStyle.SEGMENTED_12 if {_value} < 20
+		return BarStyle.SEGMENTED_20
+	if {_value} is instance of BossBar:
+		set {_segment} to {_value}.getStyle()
+	else if {_value} is instance of BarStyle:
+		set {_segment} to {_value}
+	if {_segment} is set:
+		return 0 if {_segment} is BarStyle.SOLID
+		return 6 if {_segment} is BarStyle.SEGMENTED_6
+		return 10 if {_segment} is BarStyle.SEGMENTED_10
+		return 12 if {_segment} is BarStyle.SEGMENTED_12
+		return 20 if {_segment} is BarStyle.SEGMENTED_20
+
+# command /{@ID}.segment:
+# 	trigger:
+# 		set {_segment} to BossBar_segment( 20 )
+# 		set {_amount} to BossBar_segment( {_segment} )
+# 		send "{_segment}=%{_segment}% / {_amount} = %{_amount}%" to console
+
+
+
+#> 플래그 이름이나 번호를 받으면 바 플래그를 반환
+#> 바 플래그를 받으면 플래그 번호를 반환
+#> CREATE_FOG[1] / DARKEN_SKY[2] / PLAY_BOSS_MUSIC[3]
+#> @param value 플래그 이름, 플래그 번호 or 바 플래그
+#> @return 바 플래그 or 플래그 번호
+function BossBar_flag(value:object) :: object:
+	if {_value} is text:
+		return BarFlag.CREATE_FOG if {_value} match "create(_| )fog"
+		return BarFlag.DARKEN_SKY if {_value} match "darken(_| )sky"
+		return BarFlag.PLAY_BOSS_MUSIC if {_value} match "play(_| )boss(_| )music"
+	if {_value} is integer:
+		return BarFlag.CREATE_FOG if {_value} is 1
+		return BarFlag.DARKEN_SKY if {_value} is 2
+		return BarFlag.PLAY_BOSS_MUSIC if {_value} is 3
+	if {_value} is instance of BarFlag:
+		return 1 if {_value} is BarFlag.CREATE_FOG
+		return 2 if {_value} is BarFlag.DARKEN_SKY
+		return 3 if {_value} is BarFlag.PLAY_BOSS_MUSIC
+
+# command /{@ID}.flag:
+# 	trigger:
+# 		set {_flag} to BossBar_flag( 1 )
+# 		set {_id} to BossBar_flag( {_flag} )
+# 		send "{_flag}=%{_flag}% / {_id} = %{_id}%" to console
+
+
+
+#> 보스바 생성
+#> @param title 보스바 타이틀
+#> @param color 스크립트 컬러 [ white / blue / green / pink / purple / red / yellow ]
+#> @param segment 세그먼트 개수 [ 0 / 6 / 10 / 12/ 20 ]
+#> @return 보스바
+function BossBar_create(title:text="", color:color=white, segment:integer=0) :: object:
+	set {_color} to BossBar_color({_color})
+	set {_segment} to BossBar_segment({_segment})
+	return Bukkit.createBossBar( {_title}, {_color}, {_segment} )
+
+#> Text - 타이틀 / Number - 프로그레스 / Boolean - 보이기
+#> Color - 색상 [ white / blue / green / pink / purple / red / yellow ]
+#> Integer - 세그먼트 [ 0 / 6 / 10 / 12/ 20 ]
+#> @param bossbar 보스바
+#> @param value 수정자
+function BossBar_modify(bossbar:object, value:objects):
+	{_bossbar} is instance of BossBar
+	loop {_value::*}:
+		{_bossbar}.setTitle(loop-value) if loop-value is text
+		{_bossbar}.setVisible(loop-value) if loop-value is boolean
+		{_bossbar}.setColor(BossBar_color(loop-value)) if loop-value is color
+		{_bossbar}.setColor(loop-value) if loop-value is instance of BarColor
+		{_bossbar}.setStyle(loop-value) if loop-value is instance of BarStyle
+		if loop-value is integer:
+			{_bossbar}.setStyle(BossBar_segment(loop-value))
+		else if loop-value is number:
+			set {_value} to 0 if loop-value < 0
+			set {_value} to 1 if loop-value > 1
+			set {_value} to loop-value if {_value} is not set
+			{_bossbar}.setProgress({_value}) if {_value} is set
+
+#> CREATE_FOG[1] / DARKEN_SKY[2] / PLAY_BOSS_MUSIC[3]
+#> @param bossbar 보스바
+#> @param value 플래그 이름, 플래그 번호 or 바 플래그
+function BossBar_addFlag(bossbar:object, value:object):
+	if {_value} is instance of BarFlag:
+		set {_flag} to {_value}
+	else:
+		set {_flag} to BossBar_flag({_value})
+	{_bossbar}.addFlag({_flag}) if {_flag} is set
+
+#> CREATE_FOG[1] / DARKEN_SKY[2] / PLAY_BOSS_MUSIC[3]
+#> @param bossbar 보스바
+#> @param value 플래그 이름, 플래그 번호 or 바 플래그
+function BossBar_removeFlag(bossbar:object, value:object):
+	if {_value} is instance of BarFlag:
+		set {_flag} to {_value}
+	else:
+		set {_flag} to BossBar_flag({_value})
+	{_bossbar}.removeFlag({_flag}) if {_flag} is set
+
+#> @param bossbar 보스바
+#> @param users 플레이어
+function BossBar_addPlayer(bossbar:object, users:players):
+	loop {_users::*}:
+		{_bossbar}.addPlayer(loop-value)
+
+#> @param bossbar 보스바
+#> @param users 플레이어
+function BossBar_removePlayer(bossbar:object, users:players):
+	loop {_users::*}:
+		{_bossbar}.removePlayer(loop-value)
+
+#> @param bossbar 보스바
+function BossBar_removeAll(bossbar:object):
+	{_bossbar}.removeAll()
+
+# command /{@ID}.create:
+# 	trigger:
+# 		set {_bar} to BossBar_create( "타이틀", red, 20 )
+# 		BossBar_addPlayer({_bar}, player)
+# 		wait 2 seconds
+# 		set {_modify::*} to "이름 변경", 0.0, 0, white
+# 		BossBar_modify({_bar}, {_modify::*})
+# 		BossBar_addFlag( {_bar}, 1 )
+# 		BossBar_addFlag( {_bar}, 2 )
+# 		BossBar_addFlag( {_bar}, 3 )
+# 		wait 2 seconds
+# 		BossBar_removePlayer({_bar}, player)
+
+
+
+
+
+
+
+
+# expression new bossbar:
+# 	get:
+# 		return Bukkit.createBossBar( "", BarColor.WHITE, BarStyle.SOLID )
+
+# expression new bossbar named %text% [with color %color%] [with segment[ed] %integer%]:
+# 	get:
+# 		set {_color} to fx_BossBar_barColorFrom( expr-2 )
+# 		set {_segment} to fx_BossBar_barSegmentFrom( expr-3 )
+# 		return Bukkit.createBossBar( expr-1, {_color}, {_segment} )
+
+
+# expression bossbar progress of %object%:
+# 	get: 
+# 		return expr-1.getProgress()
+# 	set:
+# 		expr-1.setProgress( change value )
+# 	add:
+# 		set {_progress} to expr-1.getProgress()
+# 		loop change values:
+# 			add loop-value to {_progress}
+# 		expr-1.setProgress( {_progress} )
+# 	remove:
+# 		set {_progress} to expr-1.getProgress()
+# 		loop change values:
+# 			remove loop-value from {_progress}
+# 		set {_progress} to 0 if {_progress} < 0
+# 		expr-1.setProgress( expr-1.getProgress() - ( change value ) )
+# 	delete:
+# 		expr-1.setProgress( 0 )
+# 	reset:
+# 		expr-1.setProgress( 0 )
+
+
+# expression bossbar viewer[s] of %object%:
+# 	get:
+# 		return ...expr-1.getPlayers()
+# 	set:
+# 		expr-1.removeAll()
+# 		loop change values:
+# 			expr-1.addPlayer( loop-value )
+# 	add:
+# 		loop change values:
+# 			expr-1.addPlayer( loop-value )
+# 	remove:
+# 		loop change values:
+# 			expr-1.removePlayer( loop-value )
+# 	delete:
+# 		expr-1.removeAll()
+# 	reset:
+# 		expr-1.removeAll()
+
+
+# expression bossbar title of %object%:
+# 	get:
+# 		return expr-1.getTitle()
+# 	set:
+# 		expr-1.setTitle( change value )
+
+
+# expression bossbar color of %object%:
+# 	get:
+# 		return fx_BossBar_barColorTo( expr-1.getColor() )
+# 	set:
+# 		expr-1.setColor( fx_BossBar_barColorFrom( change value ) )
+# 	delete:
+# 		expr-1.setColor( BarColor.WHITE )
+# 	reset:
+# 		expr-1.setColor( BarColor.WHITE )
+
+
+# expression bossbar segment of %object%:
+# 	get:
+# 		return fx_BossBar_barSegmentTo( expr-1.getStyle() )
+# 	set:
+# 		expr-1.setStyle( fx_BossBar_barSegmentFrom( change value ) )
+# 	delete:
+# 		expr-1.setStyle( BarStyle.SOLID )
+# 	reset:
+# 		expr-1.setStyle( BarStyle.SOLID )
+
+
+# #> @invisible
+# function fx_BossBar_barColorFrom(color:color) :: object:
+# 	return BarColor.WHITE if {_color} is not set
+# 	return BarColor.BLUE if {_color} is blue
+# 	return BarColor.GREEN if {_color} is green
+# 	return BarColor.PINK if {_color} is pink
+# 	return BarColor.PURPLE if {_color} is purple
+# 	return BarColor.RED if {_color} is red
+# 	return BarColor.YELLOW if {_color} is yellow
+# 	return BarColor.WHITE # default
+
+
+# #> @invisible
+# function fx_BossBar_barColorTo(color:object) :: color:
+# 	{_color} is instance of BarColor
+# 	return blue if {_color} is BarColor.BLUE
+# 	return green if {_color} is BarColor.GREEN
+# 	return pink if {_color} is BarColor.PINK
+# 	return purple if {_color} is BarColor.PURPLE
+# 	return red if {_color} is BarColor.RED
+# 	return yellow if {_color} is BarColor.YELLOW
+# 	return white # default
+
+
+# #> @invisible
+# function fx_BossBar_barSegmentFrom(int:integer=0) :: object:
+# 	return BarStyle.SOLID if {_int} is not set# default
+# 	return BarStyle.SOLID if {_int} < 6
+# 	return BarStyle.SEGMENTED_6 if {_int} < 10
+# 	return BarStyle.SEGMENTED_10 if {_int} < 12
+# 	return BarStyle.SEGMENTED_12 if {_int} < 20
+# 	return BarStyle.SEGMENTED_20
+
+
+# #> @invisible
+# function fx_BossBar_barSegmentTo(segment:object) :: integer:
+# 	{_segment} is instance of BarStyle
+# 	return 0 if {_segment} is BarStyle.SOLID # default
+# 	return 6 if {_segment} is BarStyle.SEGMENTED_6
+# 	return 10 if {_segment} is BarStyle.SEGMENTED_10
+# 	return 12 if {_segment} is BarStyle.SEGMENTED_12
+# 	return 20
+
+
+# command /bossbar.test:
+# 	trigger:
+# 		set {_bar} to new bossbar
+# 		add player to bossbar viewer of {_bar}
+
+# 		wait 20 tick
+# 		set bossbar title of {_bar} to "BB"
+		
+# 		wait 20 tick
+# 		set bossbar segment of {_bar} to 12
+		
+# 		wait 20 tick
+# 		set bossbar color of {_bar} to blue
+
+# 		loop 100 times:
+# 			set bossbar progress of {_bar} to loop-integer / 100
+# 			wait 1 tick

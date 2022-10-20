@@ -1,0 +1,69 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+
+# 220703 생성
+
+# ==================================================
+
+options:
+	ID: Trampolin
+	SOUND.BOUNCE: block.note_block.bass
+	META.REPULSIVE: metadata "Trampoline.repulsive" of {_p}
+
+aliases:
+	trampoline_block = minecraft:target
+
+on sneak toggle:
+	player is sneaking
+	player is on ground
+	fxTrampolin_launch( player )
+
+on damage of player:
+	damage cause is fall
+	block 0.5 down victim is trampoline_block
+	fxTrampolin_isBouncing( victim ) is true
+	cancel event
+
+on jump:
+	fxTrampolin_repulsive( player )
+
+#> @invisible
+function fxTrampolin_launch(p:player):
+	block 0.5 down {_p} is trampoline_block
+	set {_repulsive} to ( abs( {@META.REPULSIVE} ) otherwise 0 ) * 1.28
+	set  {_repulsive} to 0.42 if {_repulsive} < 0.42
+	set y of velocity of {_p} to {_repulsive}
+	send action bar "탄성[%{_repulsive}%]" to {_p}
+	play sound "{@SOUND.BOUNCE}" with volume 0.5 with pitch 0.5 + ( {_repulsive} - 0.42 ) * 2 to {_p}
+	fxTrampolin_repulsive( {_p} )
+
+#> @invisible
+function fxTrampolin_bounce(p:player):
+	block 0.5 down {_p} is trampoline_block
+	set {_repulsive} to abs( {@META.REPULSIVE} ) otherwise 0
+	set y of velocity of {_p} to {_repulsive}
+	set {_repulsive} to 0 if {_repulsive} < 0.042
+	send action bar "탄성[%{_repulsive}%]" to {_p}
+	play sound "{@SOUND.BOUNCE}" with volume 0.5 with pitch 0.5 + ( {_repulsive} - 0.42 ) * 2 to {_p}
+	fxTrampolin_repulsive( {_p} ) if {_repulsive} > 0
+		
+#> @invisible
+function fxTrampolin_repulsive(p:player):
+	wait 1 tick
+	do while {_p} is not on ground:
+		set {@META.REPULSIVE} to y of velocity of {_p} + 0.08
+		stop if {_p} is flying
+		wait 1 tick
+	if {_p} is sneaking:
+		loop 10 times:
+			stop loop if {_p} is not sneaking
+			wait 1 tick
+	else:
+		fxTrampolin_bounce( {_p} )
+	delete {@META.REPULSIVE}
+
+#> @invisible
+function fxTrampolin_isBouncing(p:player) :: boolean:
+	return true if {@META.REPULSIVE} is set
+	return false

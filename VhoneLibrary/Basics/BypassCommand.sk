@@ -1,0 +1,85 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+
+# 220515
+#   - 생성
+
+
+
+# =======================================================
+
+
+
+options:
+	ID: BypassCommand
+
+	META.BYPASS: metadata "bypasscommand.bypass"
+	META.LOGGING: metadata "bypasscommand.logging"
+
+
+#> 스크립트에서 실행되지 않은 명령어를 스크립트에서 동작하도록 우회합니다.
+#> 우회명령이 실행되면 On Command 이벤트에서 실행된 명령을 가로채 중단시킨 후,
+#> 원래 실행하려 했던 명령어를 스크립트 코드로 재실행합니다.
+#> 이것은 스크립트 밖에서 명령어가 실행 될 때 활용됩니다.
+#> @param cmd 명령어
+#> @return 강제 패스 명령어
+function BypassCommand(cmd:texts) :: text:
+	set {_cmd} to join {_cmd::*} with "||"
+	return join "/{@ID}" and {_cmd} with " "
+
+
+
+#> 우회명령이 실행되었는지 확인합니다.
+#> 커스텀 명령어 또는 On Command 이벤트에서 사용할 수 있습니다.
+#> @param sender 플레이어
+#> @return 실행된 명령어
+function IsBypassed(sender:player) :: boolean:
+	return ( {@META.BYPASS} of {_sender} ) otherwise false
+
+
+
+#> @param p 플레이어
+#> @param cmd 명렁어
+#> @param doLog 로그 출력
+function ExecuteCommandAsOp(p:player, cmd:texts, logging:boolean=true):
+	set {_oper} to true if {_p} is op
+	op {_p} if {_oper} is not true
+	set {@META.LOGGING} of {_p} to {_logging}
+	execute command {_cmd::*} by {_p}
+	delete {@META.LOGGING} of {_p}
+	deop {_p} if {_oper} is not true
+
+
+
+# =======================================================
+
+
+
+# issued server command
+on command with priority lowest:
+	command is not "{@ID}"
+	sender is a player
+	set {_label} to label of command command
+	if {_label} is not set:
+		set {_color} to "&c"
+		set {_plugin} to "Undefined"
+	else:
+		set {_color} to ""
+		if {_label} match "^[^:]+(:[^:]+)+$":
+			set {_split::*} to ( first element of {_label} split at ":" ) in strict proper case
+			set {_plugin} to {_split::1} 
+		else:
+			set {_plugin} to "Minecraft"
+	if {@META.BYPASS} of player is true:
+		set {_plugin} to "%{_plugin}% bypass"
+	if {@META.LOGGING} of player is true:
+		send "%{_color}%%sender% issued %{_plugin}% command: /%command% %arguments otherwise ""%" to console
+
+
+on command "{@ID}" with priority lowest:
+	cancel event
+	sender is a player
+	set {@META.BYPASS} of sender to true
+	ExecuteCommandAsOp( sender, ( arguments split at "||" ), true )
+	delete {@META.BYPASS} of sender

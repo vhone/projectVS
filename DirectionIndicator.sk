@@ -1,0 +1,71 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+
+# 220725
+#  - 생성
+# 220912
+#  - 오전, 오후, 시간에 따른 바 변형
+
+options:
+	ID: DirectionIndicaror
+	DELAY: 2 tick
+	LENGTH: 11
+
+	COLOR.CHAR: &f
+	COLOR.BAR: &7
+	COLOR.DOT: &8
+
+on join:
+	set {_bar} to metadata "{@ID}" of player
+	if {_bar} is not set:
+		set {_bar} to BossBar_create()
+		BossBar_modify({_bar}, 0.0)
+		set metadata "{@ID}" of player to {_bar}
+
+	BossBar_addPlayer({_bar}, player )
+	set {_loop} to {@LENGTH}*2+1
+	while player is online:
+
+		# direct
+		set {_yaw} to yaw of player - 180 # -180 ~ +180
+		set {_yaw} to round({_yaw}/10) # -18 ~ +18
+		set {_yaw} to {_yaw} - {@LENGTH}
+		loop {_loop} times:
+			set {_yaw} to {_yaw}-36 if {_yaw} > 18
+			set {_yaw} to {_yaw}+36 if {_yaw} < -18
+			if {_yaw} is -18 or 18:
+				add "{@COLOR.CHAR}&lS&r" to {_chars::*}
+			else if {_yaw} is -9:
+				add "{@COLOR.CHAR}&lW&r" to {_chars::*}
+			else if {_yaw} is 0:
+				add "{@COLOR.CHAR}&lN&r" to {_chars::*}
+			else if {_yaw} is 9:
+				add "{@COLOR.CHAR}&lE&r" to {_chars::*}
+			else if {_yaw} is -15 or -12, -6, -3, 3, 6, 12, 15:
+				add "{@COLOR.BAR}&l|&r" to {_chars::*}
+			else:
+				add "{@COLOR.DOT}ㆍ" to {_chars::*}
+			add 1 to {_yaw}
+		
+		# time
+		# 05:20 = 320 , /time set 23350
+		# 18:40 = 1120, /time set 12650
+		# 1440
+		set {_time::*} to "%time of world%" parsed as "%integer%\:%integer%"
+		set {_time} to round({_time::1} * 60 + {_time::2})
+		if {_time} is between 320 and 1120:
+			set {_color} to white
+			remove 320 from {_time}
+			set {_time} to 1 - {_time} / 800
+		else:
+			set {_color} to blue
+			add 320 to {_time} if {_time} < 320
+			remove 1120 from {_time} if {_time} > 1120
+			set {_time} to 1 - {_time} / 640
+		# Debug_print(script, "[%time of world%] {_time}=%{_time}%")
+		set {_option::*} to (join {_chars::*} with " ") and {_time}, {_color}
+		BossBar_modify({_bar}, {_option::*})
+		clear {_chars::*}
+		wait {@DELAY}
+	BossBar_removeAll({_bar})

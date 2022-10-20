@@ -1,0 +1,136 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+# 배포 : https://www.koreaminecraft.net/scriptqna/1706450
+
+# 220725
+#  - 생성
+
+import:
+	org.bukkit.Bukkit
+
+	org.bukkit.scoreboard.RenderType
+	# HEARTS / INTEGER
+
+	org.bukkit.scoreboard.DisplaySlot
+	# BELOW_NAME / PLAYER_LIST
+	# SIDEBAR
+	# SIDEBAR_TEAM_AQUA
+	# SIDEBAR_TEAM_BLACK
+	# SIDEBAR_TEAM_BLUE
+	# SIDEBAR_TEAM_DARK_AQUA
+	# SIDEBAR_TEAM_DARK_BLUE
+	# SIDEBAR_TEAM_DARK_GRAY
+	# SIDEBAR_TEAM_DARK_GREEN
+	# SIDEBAR_TEAM_DARK_PURPLE
+	# SIDEBAR_TEAM_DARK_RED
+	# SIDEBAR_TEAM_GOLD
+	# SIDEBAR_TEAM_GRAY
+	# SIDEBAR_TEAM_GREEN
+	# SIDEBAR_TEAM_LIGHT_PURPLE
+	# SIDEBAR_TEAM_RED
+	# SIDEBAR_TEAM_WHITE
+	# SIDEBAR_TEAM_YELLOW
+
+	# Objective - criteria
+	#   - dummy: 오직 명령어로만 증가
+	#   - trigger: /trigger 명령어로 증가
+	#   - deathCount: 플레이어 사망 시 증가
+	#   - playerKillCount: 플레이어 죽일 시 증가
+	#   - totalKillCount: 엔티티 죽일 시 증가
+	#   - health: 플레이어 최종 체력 (0~20, 20 초과)
+	#   - xp: 플레이어 총 경험치
+	#   - level: 플레이어 레벨
+	#   - food: 플레이어 배고픔 (0~20)
+	#   - air: 플레이어 공기 방울 (0~300)
+	#   - armor: 플레이어 방어 포인트 (0~20)
+
+
+
+options:
+	ID: Scoreboard
+
+	META.BOARD: metadata "Scoreboard" of {_p}
+
+
+
+on join with priority lowest:
+	set {_p} to player
+	set {_board} to {@META.BOARD}
+	# if {_board} is not set:
+	set {_board} to Bukkit.getScoreboardManager().getNewScoreboard()
+	set {@META.BOARD} to {_board}
+	set {_tablist} to {_board}.registerNewObjective("tablist.%player%", "dummy")
+	{_tablist}.setDisplaySlot(DisplaySlot.PLAYER_LIST)
+	set {_nametag} to {_board}.registerNewObjective("nametag.%player%", "health", Component_text("Health"))
+	{_nametag}.setDisplaySlot(DisplaySlot.BELOW_NAME)
+	loop all players:
+		{_tablist}.getScore(loop-player).setScore(ping of loop-player)
+		{_nametag}.getScore(loop-player).setScore(health of loop-player * 2)
+	{_p}.setScoreboard({_board})
+
+
+
+#> @param p 플레이어
+#> @param title 사이드바 제목
+#> @param lines 사이드바 내용
+function Scoreboard_sidebar(p:player, title:text="", lines:texts=""):
+	set {_board} to {@META.BOARD}
+	set {_sidebar} to {_board}.getObjective(DisplaySlot.SIDEBAR)
+	if {_title} and {_lines::*} is "":
+		{_sidebar}.unregister() if {_sidebar} is set
+		stop
+	if {_lines::*} is not "":
+		{_sidebar}.unregister()
+		set {_sidebar} to {_board}.registerNewObjective("sidebar.%{_p}%", "dummy")
+		{_sidebar}.setDisplaySlot(DisplaySlot.SIDEBAR)
+		set {_reverse::*} to reversed {_lines::*}
+		loop number of {_reverse::*} times:
+			{_sidebar}.getScore({_reverse::%loop-number%}).setScore(loop-number).resetScore()
+	if {_title} is not "": 
+		if {_sidebar} is not set:
+			set {_sidebar} to {_board}.registerNewObjective("sidebar.%{_p}%", "dummy")
+			{_sidebar}.setDisplaySlot(DisplaySlot.SIDEBAR)
+		{_sidebar}.setDisplayName({_title})
+
+
+
+# command /{@ID}.sideber.create:
+# 	trigger:
+# 		set {_lines::1} to "순서대로"
+# 		set {_lines::2} to "추가할"
+# 		set {_lines::3} to "문자열들"
+# 		Scoreboard_sidebar(player, "타이틀", {_lines::*})
+
+# command /{@ID}.sideber.remove:
+# 	trigger:
+# 		Scoreboard_sidebar(player)
+
+
+
+# command /test.scoreboard:
+# 	trigger:
+# 		set {_board} to Bukkit.getScoreboardManager().getNewScoreboard()
+
+# 		set {_obj} to {_board}.registerNewObjective("sidebar", "dummy")
+# 		{_obj}.setDisplaySlot(DisplaySlot.SIDEBAR)
+# 		{_obj}.setDisplayName("Sidebar Name")
+# 		{_obj}.getScore("Line A1").setScore(1)
+# 		{_obj}.getScore("Line A2").setScore(2)
+# 		{_obj}.getScore("Line A3").setScore(3)
+
+# 		set {_obj} to {_board}.registerNewObjective("tablist", "dummy")
+# 		{_obj}.setDisplaySlot(DisplaySlot.PLAYER_LIST)
+# 		# {_obj}.setDisplayName("Objective Name")
+# 		loop all players:
+# 			{_obj}.getScore(loop-player).setScore(ping of loop-player)
+		
+# 		set {_obj} to {_board}.registerNewObjective("belowname", "health")
+# 		{_obj}.setDisplaySlot(DisplaySlot.BELOW_NAME)
+# 		{_obj}.setRenderType(RenderType.HEARTS)
+# 		# {_obj}.setDisplayName("Health")
+# 		loop all players:
+# 			{_obj}.getScore(loop-player).setScore(health of loop-player)
+
+# 		{_borad}.addPlayer(player)
+# 		player.setScoreboard({_board})

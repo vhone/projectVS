@@ -1,0 +1,118 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+
+# 210926 생성
+# 220806
+#  > 파일명 변경 - Block.sk
+#  > 추가 - 인벤토리 타입
+#  > 추가 - 작물 타입
+
+
+
+# ==================================================
+
+
+
+aliases:
+
+	# 상호작용만 가능한 블록
+	interact_types = any bed, bell, button, campfire, cauldron, composter, door, end portal frame, fence gate, item frame, jukebox, lectern, lever, lodestone, note block, pressure plates, pumpkin, redstone ore, respawn anchor, soul campfire, spawner, tnt, trapdoor
+
+	# 인벤토리 데이터를 가진 블록
+	inventory_types = barrel, blast furnace, brewing stand, chest, dispenser, dropper, ender chest, furnace, hopper, shulker box, smoker, trapped chest
+
+	# 인터페이스만 사용하는 블록
+	interface_types = anvil, cartography table, command block, crafting table, enchanting table, grindstone, loom, smithing table, stonecutter
+
+	# 인터렉트 블록이 아닌것
+	non_interact_types = fence, stair
+
+#> is interactable 컨디션은 fence와 stair을 포함하는 문제가 있어 이것을 보정함
+#> @param type 아이템 타입
+#> @return 인터렉트 여부
+function Block_isInteractable(type:itemtype) :: boolean:
+	return false if {_type} is non_interact_types
+	return true if {_type} is interactable
+	return false
+
+#> @param type 아이템 타입
+#> @return 인벤토리를 가진 타입
+function Block_hasInventory(type:itemtype) :: boolean:
+	return true if {_type} is inventory_types
+	return false
+
+#> @param type 아이템 타입
+#> @return 인터페이스를 가진 타입
+function Block_useInterface(type:itemtype) :: boolean:
+	return true if {_type} is inventory_types or interface_types
+	return false
+
+
+
+# ==================================================
+
+
+
+	# {cocoa growth state}:
+	#     {default} = -
+	#     (small|freshly planted) = -[age=0]
+	#     medium = -[age=1]
+	#     (ripe|big|large) = -[age=2]
+	# {cocoa growth state} {directional} cocoa [plant¦s] = minecraft:cocoa
+	# {crop growth stage}:
+	#     {default} = -
+	#     freshly planted = -[age=0]
+	#     stage (2|two) = -[age=1]
+	#     stage (3|three) = -[age=2]
+	#     stage (4|four) = -[age=3]
+	#     stage (5|five) = -[age=4]
+	#     stage (6|six) = -[age=5]
+	#     stage (7|seven) = -[age=6]
+	#     (ripe|fully grown|stage (8|eight)) = -[age=7]
+	# {crop growth stage} potato plant = minecraft:potatoes
+	# {crop growth stage} carrot plant = minecraft:carrots
+	# {crop growth stage} wheat plant = minecraft:wheat
+	# {crop growth stage} pumpkin stem = minecraft:pumpkin_stem
+	# {crop growth stage} melon stem = minecraft:melon_stem
+	# {three stage growth}:
+	#     {default} = -
+	#     (freshly planted|stage (1|one)) = -[age=0]
+	#     stage (2|two) = -[age=1]
+	#     stage (3|three) = -[age=2]
+	#     (ripe|fully grown|stage (4|four)) = -[age=3]
+	# {three stage growth} beet[root] plant = minecraft:beetroots
+	# {three stage growth} nether wart plant = minecraft:nether_wart
+
+aliases:
+	crops_age1 = minecraft:bamboo
+	crops_age2 = minecraft:cocoa
+	crops_age3 = minecraft:beetroots, minecraft:nether_wart, minecraft:sweet_berry_bush
+	crops_age7 = minecraft:potatoes, minecraft:carrots, minecraft:wheat, minecraft:pumpkin_stem, minecraft:attached_pumpkin_stem, minecraft:melon_stem, minecraft:attached_melon_stem
+	crops = crops_age1, crops_age2, crops_age3, crops_age7
+
+#> 작물의 성장단계에 따라 아이템 타입을 반환합니다.
+#> @param type 작물
+#> @param age 최대 성장 단계
+#> @return 아이템 타입
+#> ```
+#> crops_age1 = minecraft:bamboo
+#> crops_age2 = minecraft:cocoa
+#> crops_age3 = minecraft:beetroots, minecraft:nether_wart, minecraft:sweet_berry_bush
+#> crops_age7 = minecraft:potatoes, minecraft:carrots, minecraft:wheat, minecraft:pumpkin_stem, minecraft:attached_pumpkin_stem, minecraft:melon_stem, minecraft:attached_melon_stem
+#> crops = crops_age1, crops_age2, crops_age3, crops_age7
+#> ```
+function Block_isGrowable(type:itemtype, age:integer=0) :: boolean:
+	if {_age} is 0:
+		set {_crop} to crops
+	else if {_age} is 1:
+		set {_crop} to crops_age1
+	else if {_age} is 2:
+		set {_crop} to crops_age2
+	else if {_age} is 3:
+		set {_crop} to crops_age3
+	else if {_age} is 7:
+		set {_crop} to crops_age7
+	return false if {_crop} is not set
+	return true if {_type} is {_crop}
+	return false

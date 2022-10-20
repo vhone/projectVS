@@ -1,0 +1,249 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+# 배포 : https://blog.naver.com/v_hone/222374282347
+
+# 210112 생성
+# 210727
+#  - int_to_hex, hex_to_int 명령어
+# 210822
+#  - Integers_fromUUID 함수
+# 210912
+#  - 전역상수 제거
+# 220514
+#  - Integer 분리
+# 220813
+#  - 병합 Number.sk
+
+# ==============================
+
+options:
+	ID: Integer
+
+	ADJUST: 1000000000000000
+
+# ==============================
+
+command /{@ID}.toHex <integer>:
+	trigger:
+		send Integer_toHex( arg-integer )
+
+command /{@ID}.fromHex <text>:
+	trigger:
+		if arg-text do not match "[0-9a-fA-F]":
+			send "16진수 문자[0-9a-fA-F]를 입력하세요."
+		send Integer_fromHex( arg-text )
+	
+# ==============================
+
+#> @param int integer
+#> @return hex code
+function Integer_toHex(int:integer) :: text:
+	return Integer_toBase( {_int}, 16 )
+
+#> @param hex hex code
+#> @return integer
+function Integer_fromHex(hex:text) :: integer:
+	return Integer_fromBase( {_hex}, 16 )
+
+#> Converts an integer to a code in the specified base.
+#> A number + alphabet combination up to a maximum of 36 is possible.
+#> @param int integer to convert
+#> @param base notation
+#> @return hex code
+function Integer_toBase(int:integer, base:integer) :: text:
+	return "0" if {_int} = 0
+	while {_int} > 0:			
+		set {_quot} to round down ( {_int} / {_base} )
+		set {_mod} to round ( {_int} - {_quot} * {_base} )
+		add fxInteger_toChar( {_mod} ) to {_mod::*}
+		set {_int} to {_quot}
+	set {_mod::*} to reversed {_mod::*}
+	return join {_mod::*} with ""
+
+#> If input the code and notation, it will be converted to decimal.
+#> @param code text to convert
+#> @param base notation
+#> @return integer
+function Integer_fromBase(code:text, base:integer) :: integer:
+	set {_split::*} to {_code} split at ""
+	set {_split::*} to reversed {_split::*}
+	set {_i} to 1
+	loop {_split::*}:
+		loop-value is not ""
+		set {_k} to fxInteger_fromChar( loop-value )
+		if {_k} > {_base}:
+			Error( script, "Integer_fromBase()", "%loop-value in upper case% is not base_%{_base}%.", console )
+			stop all loops
+		set {_int} to round( {_int} + {_k} * {_i} )
+		set {_i} to {_i} * {_base}
+	return {_int}
+
+# ==================================================
+
+#> @param binary boolean list
+#> @return integer
+function Integer_fromBinary(binary:booleans) :: integer:
+	loop number of {_binary::*} times:
+		if {_binary::%loop-number%} is true:
+			add round ( 2 ^ (loop-number - 1) ) to {_result}
+	return round ( {_result} ) otherwise 0
+
+#> @param value number to convert to binary
+#> @return binary(boolean list)
+function Integer_toBinary(value:integer) :: booleans:
+	set {_binary} to Integer_toBase( {_value}, 2 )
+	loop reversed Text_split({_binary}):
+		if loop-text is "1":
+			add true to {_result::*}
+		else:
+			add false to {_result::*}
+	return {_result::*}
+
+#> @param value the value to factorize
+#> @param factor factor
+#> @return [1=place, 2=rest]
+function Integer_factorize(value:integer, factor:integer) :: integers:
+	set {_i} to {_value}
+	while {_i} > 0:
+		set {_i} to round down ( {_i} / {_factor} )
+		add 1 to {_k}
+	set {_result::1} to round ( {_k} - 1 )
+	set {_result::2} to round ( {_value} - {_factor} ^ {_result::1} )
+	return {_result::*}
+
+
+
+# ==================================================
+
+
+
+#> Convert player UUID to Int Array UUID.
+#> Returns a List of 4 Integers.
+#> @param uuid Player UUID
+#> @return Integer Array UUID
+function Integers_fromUUID(uuid:text) :: integers:
+	if {_uuid} contains "-":
+		replace "-" with "" in {_uuid}
+	loop 4 times:
+		set {_code} to first 8 character of {_uuid}
+		set {_int} to Integer_fromHex( {_code} )
+		if {_int} > 2147483647:
+			remove 4294967296 from {_int}
+		add {_int} to {_array::*}
+		set {_uuid} to last ( length of {_uuid} - 8 ) character of {_uuid}
+	return {_array::*}
+
+
+
+# ==================================================
+
+
+
+#> @invisible
+function fxInteger_toChar(i:integer) :: text:
+	if {_i} < 10:
+		return "%{_i}%"
+	else:
+		set {_list::*} to "A" and "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"
+		return {_list::%{_i} - 9%}
+
+
+
+#> @invisible
+function fxInteger_fromChar(char:text) :: integer:
+	set {_i} to {_char} parsed as integer
+	if {_i} is set:
+		return {_i}
+	else:
+		set {_list::*} to "A" and "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"
+		loop {_list::*}:
+			{_char} is loop-value
+			return 9 + ( loop-index parsed as integer )
+
+
+
+# ==================================================
+
+
+
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+# 배포 : 
+
+# 210112 생성
+
+
+
+options:
+	ID: number
+
+
+
+#> 소수점 자릿수를 최대 15자리까지 표기합니다.
+#> @param number 실수
+#> @param length 표기할 소수점 자릿수
+#> @return 소수점이 표기된 문자열
+function Number_decimalNotation(number:number, length:integer, trim:boolean=false) :: text:
+	set {_length} to 0 if {_length} < 0
+	set {_length} to 15 if {_length} > 15
+	add "-" to {_parse::*} if {_number} < 0
+	set {_number} to abs( {_number} )
+	set {_i} to floor({_number})
+	add "%{_i}%." to {_parse::*}
+	loop {_length} times:
+		set {_number} to {_number} - {_i}
+		set {_number} to {_number} * 10
+		set {_i} to floor({_number})
+		add "%{_i}%" to {_parse::*}
+	if {_trim} is true:
+		loop integers from number of {_parse::*} to 1:
+			set {_value} to {_parse::%loop-integer%}
+			if {_value} contain ".":
+				set {_parse::%loop-integer%} to first character of {_value}
+				stop loop
+			else if {_value} is "0":
+				delete {_parse::%loop-integer%}
+			else:
+				stop loop
+	return join {_parse::*}
+
+command /{@ID}.decimalNotation <number> <integer> <boolean>:
+	trigger:
+		set {_parse} to Number_decimalNotation(arg-number-1, arg-integer, boolean arg)
+		send "{_parse}=%{_parse}%" to console
+
+#> @param num 실수
+#> @param length 소수점 길이
+#> @return 문자열로 변환된 실수
+function Number_toText(num:number, length:integer=6) :: text:
+	return "0" if {_num} is not set
+	return "%{_num}%" if {_num} is integer
+	set {_length} to 15 if {_length} > 15
+
+	set {_isPositive} to true if {_num} >= 0	
+	set {_num} to abs({_num})
+	set {_int} to floor({_num})
+	set {_rest} to round(({_num}-{_int})*{@ADJUST})
+
+	if {_rest}/{@ADJUST} is 1:
+		set {_value::1} to "%{_int}+1%"
+	else:
+		set {_value::1} to "%{_int}%"
+		set {_value::2} to "%{_rest}%"
+		set {_value::2} to join Text_repeat("0", 15 - length of {_value::2}), {_value::2}
+		set {_value::2} to first {_length} character of "%{_value::2}%"
+		while last character of {_value::2} is "0":
+			set {_value::2} to first ( length of {_value::2} - 1 ) character of {_value::2}
+	set {_value} to join {_value::*} with "."
+
+	return {_value} if {_isPositive} is true
+	return join "-" and {_value}
+
+#> @param num 실수
+#> @param pos 소수점 자릿수
+#> @return 자릿수만큼 잘려진 실수
+function Number_toFixed(num:number, pos:integer) :: number:
+	set {_size} to 10 ^ {_pos}
+	return floor( {_num} * {_size} ) / {_size}

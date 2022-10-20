@@ -1,0 +1,109 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+
+# 220717
+#  - 생성
+
+options:
+	ID: FunctionalChat
+
+
+# ==================================================
+
+
+# 일반 채팅
+command /say [<text>]:
+	trigger:
+		set {_error} to Chat_say(sender, arg-text)
+		Component_send(player, {_error}) if {_error} is set
+
+# 귓속말
+command /whisper [<player>] [<text>]:
+	aliases: 귓속말, 귓, w, msg, tell
+	trigger:
+		set {_error} to Chat_whisper(sender, arg-player, arg-text)
+		Component_send(player, {_error}) if {_error} is set
+
+# 관리자 귓속말
+command /console.wisper [<player>] [<text>]:
+	permission: console.wisper
+	aliases: console.w
+	trigger:
+		set {_error} to Chat_whisper(console, arg-player, arg-text)
+		Component_send(player, {_error}) if {_error} is set
+
+
+
+# ==================================================
+
+
+
+# 일반 채팅
+on chat:
+	cancel event
+	set {_error} to Chat_say(sender, message)
+	Component_send(player, {_error}) if {_error} is set
+
+
+
+# ==================================================
+
+
+
+#> @param sender 송신자
+#> @param msg 전달할 메세지
+#> @return 시스템 메세지 컴포넌트
+function Chat_say(sender:sender, msg:text) :: object:
+	return Component_systemMessage(script, "입력된 메세지가 없습니다") if {_msg} is not set
+
+	set {_senderComp} to Component_sender({_sender})
+	set {_msgComp} to Component_chatMessage({_sender}, {_msg})
+
+	set {_info::*} to script
+	Component_send( all players, Component_chatMessageFormmatter("&8☰&r", {_info::*}, {_senderComp}, {_msgComp}))
+
+
+
+#> @param from 송신자
+#> @param to 수신자
+#> @param msg 전달할 메세지
+#> @return 전달 실패 시 메세지 반환
+function Chat_whisper(from:sender, to:player, msg:text) :: object:
+	return Component_systemMessage(script, "/귓속말 <player> <text> 를 입력하세요") if {_to} or {_msg} is not set
+	return Component_systemMessage(script, "자신이게 귓속말을 보낼 수 없습니다") if {_from} is {_to}
+
+	set {_fromComp} to Component_sender({_from})
+	set {_msgComp} to Component_chatMessage({_from}, {_msg})
+
+	# 송신자 메세지
+	set {_info::*} to script, "%{_to}%에게 보낸 귓속말"
+	Component_send( {_from}, Component_chatMessageFormmatter("&c&l<&c<", {_info::*}, {_fromComp}, {_msgComp}))
+	
+	# 수신자 메세지
+	set {_info::*} to script, "%{_from}%에게서 받은 귓속말", uuid of {_from}
+	Component_send( {_to}, Component_chatMessageFormmatter("&a>&l>", {_info::*}, {_fromComp}, {_msgComp}))
+
+
+
+# ==================================================
+
+
+
+on join:
+	set {_lastLogin} to last login of player formatted with "yyyy/MM/dd HH:mm:ss"
+	set {_info::*} to script and "Last Login: %{_lastLogin}%"
+	event.joinMessage(Component_eventMessage({_info::*}, event.joinMessage().key(), player))
+
+on quit:
+	set {_play_time} to difference between now and last login of player
+	set {_info::*} to script and "Play Time: %{_play_time}%"
+	event.quitMessage(Component_eventMessage({_info::*}, event.quitMessage().key(), player))
+
+on death of player:
+	set {_arg::*} to victim, victim.getKiller()
+	event.deathMessage(Component_eventMessage(script, event.deathMessage().key(), {_arg::*}))
+
+
+
+# ==================================================

@@ -1,0 +1,154 @@
+# 저작자표시-비영리-동일조건 변경 허락 (BY-NC-SA)
+# 저작자 : Vhone
+# 블로그 : https://blog.naver.com/v_hone
+
+# 210116 생성
+# 210331
+#  - 추가 itemAmoun()
+# 210117
+#  - 추가 giveAndDrop()
+# 210222
+#  - 추가 giveAndDropAsInventory(), giveAndDropAsHand()
+
+
+
+# ==================================================
+
+
+
+#> 인벤토리에 있는 아이템의 개수를 반환합니다.
+#> 장비 슬롯은 포함하지 않습니다.
+#> @param item 아이템
+#> @param inv 인벤토리
+#> @return 아이템의 개수
+function Inventory_itemAmount(inv:inventory, item:item, slot:integers=-1) :: integer:
+	set {_one} to 1 of {_item}
+	set {_slot::*} to {_slot::*} where [input > -1]
+	set {_slot::*} to integers from 0 to 35 if {_slot::*} is not set
+	loop {_slot::*}:
+		set {_slot} to slot loop-value of {_inv}
+		1 of {_slot} is {_one}
+		add item amount of {_slot} to {_amount}
+	return {_amount} otherwise 0
+
+
+
+#> @param inv 인벤토리
+#> @return 인벤토리 슬롯 개수
+function Inventory_slotAmount(inv:inventory) :: integer:
+    set {_type} to type of {_inv}
+    if {_type} is beacon inventory:
+        return 1
+    else if {_type} is enchanting table inventory or stonecutter inventory:
+        return 2
+    else if {_type} is grindstone inventory or cartography table inventory, furnace inventory, blast furnace inventory, smoker inventory, anvil inventory, smithing inventory:
+        return 3
+    else if {_type} is loom inventory:
+        return 4
+    else if {_type} is brewing stand inventory or hopper inventory:
+        return 5
+    else if {_type} is workbench inventory:
+        return 10
+    else if {_type} is chest inventory or player inventory, ender chest inventory, barrel inventory, shulker box inventory, dispenser inventory, dropper inventory, crafting table inventory:
+        set {_rows} to rows of {_inv}
+        return round {_rows} * 9
+    else:
+        return -1
+
+
+# ============================== 
+
+
+
+# command /inventory.giveanddrop:
+# 	permission: inventory.giveanddrop
+# 	trigger:
+# 		set {_items::*} to 640 stone
+# 		Inventory_giveAndDrop(player, {_items::*} )
+
+
+
+#> 슬롯 0 ~ 35 순서로 아이템을 지급합니다.
+#> @param p 플레이어
+#> @param items 지급할 아이템
+function Inventory_giveAndDrop(p:players, items:items):
+	set {_sequence::*} to integers from 0 to 35
+	loop {_p::*}:
+		fxInvnetory_giveAndDrop( loop-value, {_items::*}, {_sequence::*} )
+
+
+
+#> 인벤토리에서 픽업 시 얻게되는 순서로
+#> 슬롯 8 ~ 0 순서로 지급한 후,
+#> 슬롯 35 ~ 9 순서로 지급합니다.
+#> @param p 플레이어
+#> @param items 지급할 아이템
+function Inventory_giveAndDropAsInventory(p:players, items:items):
+	set {_sequence::*} to integers from 8 to 0 and integers from 35 to 9
+	loop {_p::*}:
+		fxInvnetory_giveAndDrop( loop-value, {_items::*}, {_sequence::*} )
+
+
+
+#> 메인 손에 지급한 후 나머지 슬롯을 순서대로 지급합니다.
+#> @param p 플레이어
+#> @param items 지급할 아이템
+function Inventory_giveAndDropAsHand(p:players, items:items):
+	loop {_p::*}:
+		set {_sequence::*} to integers from 0 to 35
+		set {_index} to round( index of hotbar slot of loop-value )
+		remove {_index} from {_sequence::*}
+		set {_sequence::*} to {_index} and {_sequence::*}
+		fxInvnetory_giveAndDrop( loop-value, {_items::*}, {_sequence::*} )
+
+
+
+# ============================== inner
+
+
+
+#> @invisible
+function fxInvnetory_giveAndDrop(p:player, items:items, sequence:integers):
+	set {_inv} to inventory of {_p}
+	loop {_items::*}:
+		set {_item} to 1 of loop-value
+		set {_amount} to item amount of loop-value
+		set {_stack} to max stack of {_item}
+		set {_stack_size} to round up ( {_amount} / {_stack} )
+		clear {_slots::*}
+		loop {_sequence::*}:
+			set {_slot} to loop-value-2
+			set {_inv_item} to 1 of slot {_slot} of {_inv}
+			if {_inv_item} is air:
+				add {_slot} to {_slots::*}
+			else if {_inv_item} is {_item}:
+				set {_inv_amount} to item amount of slot {_slot} of {_inv}
+				continue if {_inv_amount} is {_stack}
+				remove 1 from {_stack_size}
+				set {_total_amount} to {_inv_amount} + {_amount}
+				if {_total_amount} > {_stack}:
+					set slot {_slot} of {_inv} to {_stack} of {_item}
+					set {_amount} to {_total_amount} - {_stack}
+				else:
+					set slot {_slot} of {_inv} to {_total_amount} of {_item}
+					set {_amount} to 0
+					stop loop
+		continue if {_amount} is 0
+		loop {_slots::*}:
+			set {_slot} to loop-value-2
+			remove 1 from {_stack_size}
+			if {_amount} > {_stack}:
+				set slot {_slot} of {_inv} to {_stack} of {_item}
+				set {_amount} to {_amount} - {_stack}
+			else:
+				set slot {_slot} of {_inv} to {_amount} of {_item}
+				set {_amount} to 0
+				stop loop
+		continue if {_amount} is 0
+		set {_loc} to location 0.25 in front of head location of {_p}
+		loop ceil( {_amount} / {_stack} ) times:
+			if {_amount} > {_stack}:
+				drop {_stack} of {_item} at {_loc} without velocity
+				remove {_stack} from {_amount}
+			else:
+				drop {_amount} of {_item} at {_loc} without velocity
