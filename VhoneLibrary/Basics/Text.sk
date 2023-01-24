@@ -25,9 +25,8 @@
 #> 문자열에 있는 문자의 개수를 반환합니다.
 #> @param text 문자열
 #> @param char 찾을 문자
-#> @param max_loop 최대 반복횟수
 #> @return 검색된 갯수
-function Text_amount(text:text, char:text, max_loop:integer=1000) :: integer:
+function Text_amount(text:text, char:text) :: integer:
 	set {_length} to length of {_char}
 	set {_count} to -1
 	do while {_index} >= 0:
